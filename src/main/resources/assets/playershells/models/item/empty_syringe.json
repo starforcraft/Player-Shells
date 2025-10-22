@@ -1,0 +1,36 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "playershells:item/empty_syringe"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "playershells:extracting": 1,
+        "playershells:extracting_progress": 0.1
+      },
+      "model": "playershells:item/blood_syringe_0"
+    },
+    {
+      "predicate": {
+        "playershells:extracting": 1,
+        "playershells:extracting_progress": 0.3
+      },
+      "model": "playershells:item/blood_syringe_1"
+    },
+    {
+      "predicate": {
+        "playershells:extracting": 1,
+        "playershells:extracting_progress": 0.5
+      },
+      "model": "playershells:item/blood_syringe_2"
+    },
+    {
+      "predicate": {
+        "playershells:extracting": 1,
+        "playershells:extracting_progress": 0.7
+      },
+      "model": "playershells:item/blood_syringe_3"
+    }
+  ]
+}

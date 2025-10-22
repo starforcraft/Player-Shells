@@ -1,0 +1,8 @@
+{
+  "flamethrower": {
+    "sounds": [
+      "playershells:flamethrower"
+    ],
+    "subtitle": "subtitles.playershells.flamethrower"
+  }
+}
