@@ -5,6 +5,7 @@ import com.ultramega.playershells.gui.CentrifugeScreen;
 import com.ultramega.playershells.gui.RadialMenuRenderer;
 import com.ultramega.playershells.gui.ShellForgeScreen;
 import com.ultramega.playershells.gui.ShellSelectionOverlay;
+import com.ultramega.playershells.gui.layer.BloodLayer;
 import com.ultramega.playershells.items.extensions.SyringeItemExtension;
 import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModItems;
@@ -116,6 +117,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void registerGuiLayers(final RegisterGuiLayersEvent event) {
         event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(MODID, "shells_selection"), ShellSelectionOverlay.INSTANCE);
+        event.registerAboveAll(ResourceLocation.fromNamespaceAndPath(MODID, "blood"), new BloodLayer());
     }
 
     @SubscribeEvent

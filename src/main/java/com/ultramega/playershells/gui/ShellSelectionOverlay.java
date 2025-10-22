@@ -78,6 +78,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     public void render(final GuiGraphics graphics, final DeltaTracker deltaTracker) {
         // TODO: Add eye view into the top right corner, below coordinates, dimension and gamemode
         //  also add curios compat to the left side of the inventory
+        //  also implement pagination
         if (!this.isOpened()) {
             return;
         }

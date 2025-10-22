@@ -34,15 +34,27 @@ public final class MathUtils {
     public static float yawForDirection(final Direction direction) {
         return switch (direction) {
             case NORTH -> 180f;
-            case SOUTH -> 0f;
             case WEST -> 90f;
             case EAST -> 270f;
-            default -> 0f;
+            default -> 0f; //SOUTH
         };
     }
 
     public static double getMinVelocity(final double velocity, final double absLimit) {
         return Math.abs(velocity) < absLimit ? velocity : absLimit * Math.signum(velocity);
+    }
+
+    public static boolean near(final float a, final float b) {
+        return Math.abs(a - b) < 1e-4f;
+    }
+
+    public static float smoothstep01(final float x) {
+        final float smooth = clamp01(x);
+        return smooth * smooth * (3f - 2f * smooth);
+    }
+
+    public static float clamp01(final float x) {
+        return x < 0f ? 0f : Math.min(x, 1f);
     }
 
     public static int[] interpolateGradient(final float t, final int[] colorA, final int[] colorB, final int[] colorC) {

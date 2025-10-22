@@ -3,6 +3,7 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.107'
     id 'idea'
+    id 'me.modmuss50.mod-publish-plugin' version '1.0.0'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -87,6 +88,28 @@ dependencies {
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
     localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
 }
+
+publishMods {
+    changelog = currentChangelog
+    type = BETA
+    modLoaders.add("neoforge")
+    file = jar.archiveFile
+
+    curseforge {
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+        projectId = "1367394"
+        minecraftVersions.add(minecraft_version)
+        changelogType = "html"
+        displayName = file.map { it.asFile.name }
+    }
+
+    modrinth {
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        projectId = "qPuV8lER"
+        minecraftVersions.add(minecraft_version)
+    }
+}
+
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [

@@ -49,11 +49,11 @@ public class SyringeItemExtension implements IClientItemExtensions {
                                      final float partialTicks,
                                      final int useTicks) {
         final float t = Mth.clamp((useTicks + partialTicks) / 6.0F, 0.0F, 1.0F);
-        final float slide = Mth.lerp(t, -1.6F, 0.0F);
+        final float moveFactor = Mth.lerp(t, -1.6F, 0.0F);
 
         poseStack.pushPose();
 
-        poseStack.translate(slide, 0.0F, 0.0F);
+        poseStack.translate(moveFactor, 0.0F, 0.0F);
 
         poseStack.translate(0.14F, 0.0F, -0.50F);
 
@@ -64,7 +64,8 @@ public class SyringeItemExtension implements IClientItemExtensions {
         poseStack.mulPose(Axis.YP.rotationDegrees(-130.0F));
         poseStack.translate(5.8F, 0F, 0F);
         poseStack.mulPose(Axis.YP.rotationDegrees(80.0F));
-        poseStack.translate(0.1F, 0F, 0.5F);
+        poseStack.translate(0.1F, -0.1F, 0.5F);
+        poseStack.mulPose(Axis.ZP.rotationDegrees(20.0F));
 
         final PlayerRenderer playerRenderer = (PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(localPlayer);
         playerRenderer.renderLeftHand(poseStack, buffer, packedLight, localPlayer);
@@ -80,8 +81,9 @@ public class SyringeItemExtension implements IClientItemExtensions {
                                       final float partialTicks,
                                       final float equippedProgress,
                                       final int useTicks,
-                                      final int useDuration) { //TODO!!!
-        final float moveFactor = (useTicks != useDuration && useTicks <= 30 && useTicks > 16) ? -Mth.sin((float) ((useTicks - 16 + partialTicks) * 0.2)) : 0.0F;
+                                      final int useDuration) {
+        final float t = Mth.clamp((useTicks + partialTicks) / 6.0F, 0.0F, 1.0F);
+        final float moveFactor = (useTicks != useDuration) ? Mth.lerp(t, 0.0F, -1.0F) : 0.0F;
 
         poseStack.pushPose();
 
@@ -96,9 +98,10 @@ public class SyringeItemExtension implements IClientItemExtensions {
         poseStack.mulPose(Axis.YP.rotationDegrees(-135.0F));
         poseStack.translate(5.6F, 0.0F, 0.0F);
 
-        poseStack.mulPose(Axis.XP.rotationDegrees(70 * moveFactor));
-        poseStack.mulPose(Axis.YP.rotationDegrees(30 * moveFactor));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(-10 * moveFactor));
+        poseStack.mulPose(Axis.XP.rotationDegrees(75 * moveFactor));
+        poseStack.translate(0.0F, -0.2F * moveFactor + 0.2F, 0.0F);
+
+        poseStack.mulPose(Axis.YP.rotationDegrees(10));
 
         final PlayerRenderer playerRenderer = (PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(localPlayer);
         playerRenderer.renderRightHand(poseStack, buffer, packedLight, localPlayer);
@@ -108,7 +111,12 @@ public class SyringeItemExtension implements IClientItemExtensions {
         // Syringe
         poseStack.translate(0.57F, -0.32F + equippedProgress * -0.6F, -1.22F);
         poseStack.mulPose(Axis.XP.rotationDegrees(-162F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(15F));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(20F));
+        poseStack.mulPose(Axis.YP.rotationDegrees(10F));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(10F));
+
+        poseStack.translate(moveFactor, 0.25F * moveFactor, 0.2F * moveFactor);
+
+        poseStack.mulPose(Axis.YP.rotationDegrees(110F * moveFactor));
+        poseStack.mulPose(Axis.XP.rotationDegrees(20F));
     }
 }
