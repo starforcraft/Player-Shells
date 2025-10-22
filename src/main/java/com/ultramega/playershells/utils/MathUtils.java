@@ -1,22 +1,25 @@
 package com.ultramega.playershells.utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.MinecraftServer;
@@ -143,49 +146,27 @@ public final class MathUtils {
             .collect(Collectors.toMap(Entry::getKey, e -> Lists.newArrayList(e.getValue()))) : null);
     }
 
-    public static <B extends ByteBuf, K, V, M extends Multimap<K, V>> StreamCodec<B, M> multiMapStreamCodec(final Supplier<? extends M> factory,
-                                                                                                            final StreamCodec<? super B, K> keyCodec,
-                                                                                                            final StreamCodec<? super B, V> valueCodec) {
-        return multiMapStreamCodec(factory, keyCodec, valueCodec, Integer.MAX_VALUE);
-    }
 
-    static <B extends ByteBuf, K, V, M extends Multimap<K, V>> StreamCodec<B, M> multiMapStreamCodec(final Supplier<? extends M> factory,
-                                                                                                     final StreamCodec<? super B, K> keyCodec,
-                                                                                                     final StreamCodec<? super B, V> valueCodec,
-                                                                                                     final int maxSize) {
-        return new StreamCodec<>() {
-            @Override
-            public void encode(final B out, final M multimap) { //TODO: this isn't working correctly
-                List<Map.Entry<K, V>> entries = new ArrayList<>();
-                synchronized (multimap) {
-                    if (!multimap.entries().isEmpty()) {
-                        entries = new ArrayList<>(multimap.entries());
+    public static <K, V> StreamCodec<RegistryFriendlyByteBuf, Multimap<K, V>> multiMapStreamCodec(final StreamCodec<ByteBuf, K> keyCodec,
+                                                                                                  final StreamCodec<ByteBuf, V> valueCodec) {
+        final StreamCodec<ByteBuf, List<V>> listOfV = valueCodec.apply(ByteBufCodecs.list());
+        final StreamCodec<RegistryFriendlyByteBuf, Map<K, List<V>>> mapCodec = ByteBufCodecs.map(HashMap::new, keyCodec, listOfV);
+
+        return mapCodec.map(
+            map -> {
+                final ListMultimap<K, V> multimap = ArrayListMultimap.create();
+                map.forEach((k, list) -> {
+                    if (list != null && !list.isEmpty()) {
+                        multimap.putAll(k, list);
                     }
-                }
-
-                final int size = entries.size();
-                if (size > maxSize) {
-                    throw new IllegalArgumentException("Multimap size " + size + " exceeds max " + maxSize);
-                }
-
-                ByteBufCodecs.writeCount(out, size, maxSize);
-                for (final Map.Entry<K, V> e : entries) {
-                    keyCodec.encode(out, e.getKey());
-                    valueCodec.encode(out, e.getValue());
-                }
+                });
+                return multimap;
+            },
+            mm -> {
+                final Map<K, List<V>> out = new HashMap<>();
+                mm.asMap().forEach((k, coll) -> out.put(k, new ArrayList<>(coll)));
+                return out;
             }
-
-            @Override
-            public M decode(final B in) {
-                final int count = ByteBufCodecs.readCount(in, maxSize);
-                final M result = factory.get();
-                for (int i = 0; i < count; i++) {
-                    final K key = keyCodec.decode(in);
-                    final V value = valueCodec.decode(in);
-                    result.put(key, value);
-                }
-                return result;
-            }
-        };
+        );
     }
 }

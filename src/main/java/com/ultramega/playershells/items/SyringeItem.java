@@ -36,9 +36,11 @@ public class SyringeItem extends ItemWithOwner {
 
     @Override
     public void onUseTick(final Level level, final LivingEntity entity, final ItemStack stack, final int remainingUseDuration) {
-        final Minecraft mc = Minecraft.getInstance();
-        if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
-            mc.options.setCameraType(CameraType.FIRST_PERSON);
+        if (level.isClientSide()) {
+            final Minecraft mc = Minecraft.getInstance();
+            if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
+            }
         }
 
         if (!level.isClientSide()) {

@@ -40,6 +40,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
@@ -124,6 +126,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         blockEntity.setChanged();
     }
 
+    @OnlyIn(Dist.CLIENT)
     public static void clientTick(final Level level, final BlockPos pos, final BlockState state, final ShellForgeBlockEntity blockEntity) {
         blockEntity.animPrevProgress = blockEntity.animProgress;
         final float target = state.getValue(OPEN) ? 1.0f : 0.0f;
@@ -191,6 +194,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.setPlayerUuid(player.getUUID());
         this.shellState = ShellStates.EXTERMINATE;
         this.playerState = PlayerStates.NONE;
+        this.shellPercentage = 100;
         if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
