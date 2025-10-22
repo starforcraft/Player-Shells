@@ -89,8 +89,8 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         final PoseStack poseStack = graphics.pose();
 
         if (this.getMenu().getBlockEntity().getShellState() != ShellStates.CREATE) {
-            final Component status = Component.translatable("gui.playershells.shell_forge.status", this.randomStatusSubText);
             if (this.randomStatusSubText != null) {
+                final Component status = Component.translatable("gui.playershells.shell_forge.status", this.randomStatusSubText);
                 final int x = (int) (this.leftPos + (this.imageWidth - this.font.width(status.getString()) * STATUS_TEXT_SCALE) / 2);
                 final int y = this.topPos + 47;
 

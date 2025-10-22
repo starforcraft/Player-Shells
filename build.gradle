@@ -99,7 +99,6 @@ publishMods {
         accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
         projectId = "1367394"
         minecraftVersions.add(minecraft_version)
-        changelogType = "html"
         displayName = file.map { it.asFile.name }
     }
 
