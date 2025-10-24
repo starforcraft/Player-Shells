@@ -5,6 +5,8 @@ import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.gui.widgets.ProgressBarWidget;
 import com.ultramega.playershells.gui.widgets.ShellButton;
 import com.ultramega.playershells.packet.c2s.ShellButtonPressedPacket;
+import com.ultramega.playershells.registry.ModSoundEvents;
+import com.ultramega.playershells.utils.SoundHandler;
 
 import java.util.List;
 import javax.annotation.Nullable;
@@ -14,6 +16,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.Level;
@@ -47,6 +50,11 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         super.init();
 
         this.shellButton = new ShellButton(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 55, 80, 16, (button) -> {
+            if (this.getMenu().getBlockEntity().getLevel() != null) {
+                SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F,
+                    this.getMenu().getBlockEntity().getLevel().random, this.getMenu().getBlockEntity().getBlockPos());
+            }
+
             PacketDistributor.sendToServer(new ShellButtonPressedPacket(this.getMenu().getBlockEntity().getBlockPos()));
         }, this.getMenu().getBlockEntity());
         this.addRenderableWidget(this.shellButton);

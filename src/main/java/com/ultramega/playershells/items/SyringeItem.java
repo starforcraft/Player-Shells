@@ -18,7 +18,7 @@ import static com.ultramega.playershells.utils.MathUtils.near;
 
 public class SyringeItem extends ItemWithOwner {
     public static final int MAX_EXTRACT_DURATION = 100;
-    public static final float[] PULSE_POINTS = {0.1f, 0.3f, 0.5f, 0.7f};
+    public static final float[] PULSE_POINTS = {0.1f, 0.3f, 0.5f, 0.7f, 0.95f};
 
     public SyringeItem(final Properties properties) {
         super(properties);

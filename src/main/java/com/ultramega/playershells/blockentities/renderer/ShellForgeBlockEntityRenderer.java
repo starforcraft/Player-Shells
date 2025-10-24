@@ -117,6 +117,7 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
     }
 
     private void renderSmallFlame(final PoseStack poseStack, final MultiBufferSource buffers, final RandomSource random, final int packedLight) {
+
         final VertexConsumer vertexConsumer = buffers.getBuffer(RenderType.debugQuads());
 
         for (int i = 0; i < FLAME_STRAY_COUNT; i++) {

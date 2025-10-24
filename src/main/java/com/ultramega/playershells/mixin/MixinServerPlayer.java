@@ -40,6 +40,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.scores.Team;
 import net.minecraft.world.scores.Team.Visibility;
+import net.neoforged.neoforge.event.EventHooks;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -65,44 +66,6 @@ public abstract class MixinServerPlayer extends Player implements ShellPlayer {
 
     public MixinServerPlayer(final Level level, final BlockPos pos, final float rotY, final GameProfile gameProfile) {
         super(level, pos, rotY, gameProfile);
-    }
-
-    @Override
-    public void playershells$applyData(final CompoundTag tag, final PositionReference posReference) {
-        if (this.getServer() == null) {
-            return;
-        }
-        final ServerLevel targetLevel = findTargetLevel(this.getServer(), posReference);
-        if (targetLevel == null) {
-            return;
-        }
-
-        final BlockPos pos = posReference.pos().immutable();
-        final LevelChunk chunk = targetLevel.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
-        final double x = pos.getX() + 0.5;
-        final double y = pos.getY() + 0.06250;
-        final double z = pos.getZ() + 0.5;
-        final BlockState state = chunk.getBlockState(pos);
-        final float yaw = state.hasProperty(FACING) ? state.getValue(FACING).toYRot() : 0f;
-
-        this.teleportTo(targetLevel, x, y, z, yaw, 0);
-
-        this.removeAllEffects();
-        this.load(tag);
-        this.loadGameTypes(tag);
-
-        final ServerPlayer serverPlayer = (ServerPlayer) (Object) this;
-        final PlayerList playerList = this.server.getPlayerList();
-
-        this.onUpdateAbilities();
-        playerList.broadcastAll(new ClientboundPlayerInfoUpdatePacket(Action.UPDATE_GAME_MODE, serverPlayer));
-        this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, (float) this.gameMode.getGameModeForPlayer().getId()));
-        this.getStats().markAllDirty();
-        this.updateEffectVisibility();
-        playerList.sendActivePlayerEffects(serverPlayer);
-        playerList.sendAllPlayerInfo(serverPlayer);
-
-        PacketDistributor.sendToPlayer(serverPlayer, new FinishedSyncPacket());
     }
 
     @Inject(method = "die", at = @At("HEAD"), cancellable = true)
@@ -139,6 +102,45 @@ public abstract class MixinServerPlayer extends Player implements ShellPlayer {
         TransferPlayerPacket.transfer(this.server, serverPlayer, null, shellState.shellForgePos());
         PacketDistributor.sendToPlayer(serverPlayer, new AfterDeathPacket(shellState.shellForgePos()));
         ci.cancel();
+    }
+
+    @Override
+    public void playershells$applyData(final CompoundTag tag, final PositionReference posReference) {
+        if (this.getServer() == null) {
+            return;
+        }
+        final ServerLevel targetLevel = findTargetLevel(this.getServer(), posReference);
+        if (targetLevel == null) {
+            return;
+        }
+
+        final BlockPos pos = posReference.pos().immutable();
+        final LevelChunk chunk = targetLevel.getChunk(pos.getX() >> 4, pos.getZ() >> 4);
+        final double x = pos.getX() + 0.5;
+        final double y = pos.getY() + 0.06250;
+        final double z = pos.getZ() + 0.5;
+        final BlockState state = chunk.getBlockState(pos);
+        final float yaw = state.hasProperty(FACING) ? state.getValue(FACING).toYRot() : 0f;
+
+        this.teleportTo(targetLevel, x, y, z, yaw, 0);
+
+        this.removeAllEffects();
+        this.load(tag);
+        this.loadGameTypes(tag);
+
+        final ServerPlayer serverPlayer = (ServerPlayer) (Object) this;
+        final PlayerList playerList = this.server.getPlayerList();
+
+        this.onUpdateAbilities();
+        playerList.broadcastAll(new ClientboundPlayerInfoUpdatePacket(Action.UPDATE_GAME_MODE, serverPlayer));
+        this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, (float) this.gameMode.getGameModeForPlayer().getId()));
+        this.getStats().markAllDirty();
+        this.updateEffectVisibility();
+        playerList.sendActivePlayerEffects(serverPlayer);
+        playerList.sendAllPlayerInfo(serverPlayer);
+        EventHooks.firePlayerRespawnEvent(serverPlayer, targetLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY));
+
+        PacketDistributor.sendToPlayer(serverPlayer, new FinishedSyncPacket());
     }
 
     @Override

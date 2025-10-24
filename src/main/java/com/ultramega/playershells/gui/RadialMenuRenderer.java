@@ -1,6 +1,5 @@
 package com.ultramega.playershells.gui;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.blockentities.renderer.ShellForgeBlockEntityRenderer.ShaderForcingBuffer;
 import com.ultramega.playershells.entities.ShellEntity;
 import com.ultramega.playershells.registry.ModRenderTypes;
@@ -34,6 +33,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import org.apache.commons.lang3.ArrayUtils;
+import org.joml.Quaternionf;
 
 import static com.ultramega.playershells.utils.MathUtils.packRGB8;
 
@@ -140,10 +140,11 @@ public abstract class RadialMenuRenderer<T> {
                 final EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
                 final MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
 
-                final ResourceLocation skinTexture = dispatcher.getRenderer(shellPlayer).getTextureLocation(shellPlayer);
                 final int shellCreationProgress = this.getPlayerShellCreationProgress(key);
+                final ResourceLocation skinTexture = dispatcher.getRenderer(shellPlayer).getTextureLocation(shellPlayer);
                 final RenderType renderType = ModRenderTypes.CREATE_SHADER_TYPE.apply(skinTexture, shellPlayer, shellCreationProgress, 20, packRGB8(54, 188, 184));
                 final MultiBufferSource remappedBuffer = new ShaderForcingBuffer(bufferSource, renderType, shellCreationProgress != 100);
+                final float scale = 20.0F;
 
                 if (shellCreationProgress != 100) {
                     textToDraw.add(new PositionedText(x, y - 12, Component.literal(shellCreationProgress + "%")));
@@ -152,29 +153,32 @@ public abstract class RadialMenuRenderer<T> {
 
                 poseStack.pushPose();
                 poseStack.translate(x, y + 12, 100F);
-                poseStack.scale(20F, 20F, 20F);
+                poseStack.scale(scale, scale, scale);
                 poseStack.mulPose(Axis.ZP.rotationDegrees(180F));
                 poseStack.mulPose(Axis.YP.rotationDegrees(30f));
 
                 final float yPos = new Transformation(poseStack.last().pose()).getTranslation().y;
                 shellPlayer.setPos(0, -yPos + 2, 0);
 
+                dispatcher.overrideCameraOrientation(new Quaternionf(0.0F, 0.0F, 0.0F, 1.0F));
                 dispatcher.setRenderShadow(false);
-                dispatcher.render(
-                    shellPlayer,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    poseStack,
-                    remappedBuffer,
-                    LightTexture.FULL_BRIGHT
-                );
+                RenderSystem.enableDepthTest();
+                RenderSystem.runAsFancy(() -> {
+                    dispatcher.render(
+                        shellPlayer,
+                        0.0D,
+                        0.0D,
+                        0.0D,
+                        0.0F,
+                        1.0F,
+                        poseStack,
+                        remappedBuffer,
+                        LightTexture.FULL_BRIGHT
+                    );
+                });
+                bufferSource.endBatch();
                 dispatcher.setRenderShadow(true);
                 poseStack.popPose();
-
-                bufferSource.endBatch();
             }
         }
 

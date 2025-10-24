@@ -95,7 +95,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
                 blockEntity.exterminateShell();
                 return;
             }
-            if (blockEntity.shellPercentageCooldownTick++ <= Config.SHELL_FORGE_DECAY_COOLDOWN.get()) {
+            if (blockEntity.shellState == ShellStates.DECAYING && blockEntity.shellPercentageCooldownTick++ <= Config.SHELL_FORGE_DECAY_COOLDOWN.get()) {
                 blockEntity.setChanged();
                 return;
             }
@@ -139,7 +139,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
 
         if (blockEntity.shellState == ShellStates.EXTERMINATING) {
             if (level.random.nextDouble() < 0.1) {
-                SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.0F, 1.0F, level.random, pos);
+                SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F, level.random, pos);
             }
         } else {
             SoundHandler.stopAllBlockSounds(pos);
