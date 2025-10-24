@@ -29,6 +29,10 @@ public final class Config {
         .comment("Energy consumed by the Centrifuge per tick")
         .defineInRange("centrifugeEnergyUsage", 3_000, 1, Integer.MAX_VALUE);
 
+    public static final ModConfigSpec.BooleanValue TRANSFER_INTO_SHELL_AFTER_DEATH = BUILDER
+        .comment("If enabled, the player will respawn in the nearest shell after death, even in hardcore mode. When disabled, death in hardcore mode remains permanent")
+        .define("transferIntoShellAfterDeath", true);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

@@ -1,5 +1,6 @@
 package com.ultramega.playershells.mixin;
 
+import com.ultramega.playershells.Config;
 import com.ultramega.playershells.packet.c2s.TransferPlayerPacket;
 import com.ultramega.playershells.packet.s2c.AfterDeathPacket;
 import com.ultramega.playershells.packet.s2c.FinishedSyncPacket;
@@ -70,6 +71,10 @@ public abstract class MixinServerPlayer extends Player implements ShellPlayer {
 
     @Inject(method = "die", at = @At("HEAD"), cancellable = true)
     private void die(final DamageSource cause, final CallbackInfo ci) {
+        if (!Config.TRANSFER_INTO_SHELL_AFTER_DEATH.get()) {
+            return;
+        }
+
         final ShellState shellState = ShellSavedData.getShellData(this.serverLevel())
             .getNearestActive(this.getUUID(), this.level().dimension().location(), this.blockPosition());
         if (shellState == null) {

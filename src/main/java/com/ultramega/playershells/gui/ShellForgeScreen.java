@@ -1,5 +1,6 @@
 package com.ultramega.playershells.gui;
 
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.gui.widgets.ProgressBarWidget;
@@ -50,7 +51,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         super.init();
 
         this.shellButton = new ShellButton(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 55, 80, 16, (button) -> {
-            if (this.getMenu().getBlockEntity().getLevel() != null) {
+            if (this.getMenu().getBlockEntity().getShellState() == ShellStates.EXTERMINATE && this.getMenu().getBlockEntity().getLevel() != null) {
                 SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F,
                     this.getMenu().getBlockEntity().getLevel().random, this.getMenu().getBlockEntity().getBlockPos());
             }
