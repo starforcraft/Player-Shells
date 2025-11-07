@@ -9,8 +9,6 @@ import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.utils.ObservableEnergyStorage;
 import com.ultramega.playershells.utils.OwnerData;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;

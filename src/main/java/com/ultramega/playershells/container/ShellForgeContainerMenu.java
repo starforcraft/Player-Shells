@@ -1,12 +1,10 @@
 package com.ultramega.playershells.container;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.registry.ModBlocks;
 import com.ultramega.playershells.registry.ModMenuTypes;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Inventory;

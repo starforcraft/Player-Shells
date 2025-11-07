@@ -200,9 +200,10 @@ public abstract class RadialMenuRenderer<T> {
     }
 
     public static MousePos getMousePos() {
-        final MouseHandler mouse = Minecraft.getInstance().mouseHandler;
-        final double mouseX = mouse.xpos() * (double) Minecraft.getInstance().getWindow().getGuiScaledWidth() / (double) Minecraft.getInstance().getWindow().getScreenWidth();
-        final double mouseY = mouse.ypos() * (double) Minecraft.getInstance().getWindow().getGuiScaledHeight() / (double) Minecraft.getInstance().getWindow().getScreenHeight();
+        final Minecraft mc = Minecraft.getInstance();
+        final MouseHandler mouse = mc.mouseHandler;
+        final double mouseX = mouse.xpos() * (double) mc.getWindow().getGuiScaledWidth() / (double) mc.getWindow().getScreenWidth();
+        final double mouseY = mouse.ypos() * (double) mc.getWindow().getGuiScaledHeight() / (double) mc.getWindow().getScreenHeight();
         return new MousePos(mouseX, mouseY);
     }
 

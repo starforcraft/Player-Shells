@@ -1,6 +1,5 @@
 package com.ultramega.playershells.gui;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.gui.widgets.ProgressBarWidget;
