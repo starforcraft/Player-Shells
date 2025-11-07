@@ -11,6 +11,7 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -143,7 +144,7 @@ public class ShellSavedData extends SavedData {
     }
 
     public void syncToClient() {
-        PacketDistributor.sendToAllPlayers(new SyncShellDataPacket(this.entries));
+        PacketDistributor.sendToAllPlayers(new SyncShellDataPacket(ImmutableListMultimap.copyOf(this.entries)));
     }
 
     public static ShellSavedData getShellData(final ServerLevel level) {

@@ -52,6 +52,7 @@ import static com.ultramega.playershells.blocks.ShellForgeBlock.movePlayerTo;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.setValue;
 import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
 import static com.ultramega.playershells.utils.MathUtils.hasPlayerInside;
+import static com.ultramega.playershells.utils.MathUtils.isPlayerWithinDistance;
 
 public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, Nameable {
     private static final float OPEN_SPEED = 0.12f;
@@ -273,6 +274,10 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             if (hasPlayerInside(pos, this.level)) {
                 this.playerState = PlayerStates.INSIDE;
                 this.setChanged();
+            } else if (!isPlayerWithinDistance(pos, this.level, 5)) {
+                this.playerState = PlayerStates.NONE;
+                this.setChanged();
+                setValue(state, this.level, pos, new BoolProperty(OPEN, false));
             }
         } else if (!hasPlayerInside(pos, this.level)) {
             this.playerState = PlayerStates.NONE;

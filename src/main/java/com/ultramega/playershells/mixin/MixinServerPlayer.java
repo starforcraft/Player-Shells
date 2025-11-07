@@ -141,9 +141,11 @@ public abstract class MixinServerPlayer extends Player implements ShellPlayer {
         this.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, (float) this.gameMode.getGameModeForPlayer().getId()));
         this.getStats().markAllDirty();
         this.updateEffectVisibility();
-        playerList.sendActivePlayerEffects(serverPlayer);
-        playerList.sendAllPlayerInfo(serverPlayer);
-        EventHooks.firePlayerRespawnEvent(serverPlayer, targetLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY));
+        if (this.level() == targetLevel) {
+            playerList.sendActivePlayerEffects(serverPlayer);
+            playerList.sendAllPlayerInfo(serverPlayer);
+            EventHooks.firePlayerRespawnEvent(serverPlayer, targetLevel.getGameRules().getBoolean(GameRules.RULE_KEEPINVENTORY));
+        }
 
         PacketDistributor.sendToPlayer(serverPlayer, new FinishedSyncPacket());
     }

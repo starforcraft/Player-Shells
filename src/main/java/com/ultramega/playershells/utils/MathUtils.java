@@ -118,10 +118,14 @@ public final class MathUtils {
     }
 
     public static boolean hasPlayerInside(final BlockPos pos, final Level level) {
+        return isPlayerWithinDistance(pos, level, 1);
+    }
+
+    public static boolean isPlayerWithinDistance(final BlockPos pos, final Level level, final int distance) {
         final double x = pos.getX() + 0.5;
         final double y = pos.getY() + 0.5;
         final double z = pos.getZ() + 0.5;
-        return level.getNearestPlayer(x, y, z, 1, false) != null;
+        return level.getNearestPlayer(x, y, z, distance, false) != null;
     }
 
     @SuppressWarnings("unchecked")
