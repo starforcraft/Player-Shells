@@ -4,8 +4,11 @@ import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.utils.OwnerData;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
@@ -26,6 +29,16 @@ public class SyringeItem extends ItemWithOwner {
 
     @Override
     public InteractionResultHolder<ItemStack> use(final Level level, final Player player, final InteractionHand usedHand) {
+        final boolean isOffhand = usedHand == InteractionHand.OFF_HAND;
+        final boolean isOffhandEmpty = player.getItemInHand(InteractionHand.OFF_HAND).isEmpty();
+        if (isOffhand || !isOffhandEmpty) {
+            final MutableComponent component = Component.translatable(isOffhand
+                ? "gui.playershells.syringe.cannot_use_offhand"
+                : "gui.playershells.syringe.offhand_empty");
+            player.displayClientMessage(component.withStyle(ChatFormatting.RED), true);
+            return InteractionResultHolder.fail(player.getItemInHand(usedHand));
+        }
+
         final ItemStack stack = player.getItemInHand(usedHand);
         if (stack.is(ModItems.EMPTY_SYRINGE.get())) {
             player.startUsingItem(usedHand);

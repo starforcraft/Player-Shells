@@ -19,12 +19,14 @@ import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -118,14 +120,39 @@ public final class MathUtils {
     }
 
     public static boolean hasPlayerInside(final BlockPos pos, final Level level) {
-        return isPlayerWithinDistance(pos, level, 1);
-    }
-
-    public static boolean isPlayerWithinDistance(final BlockPos pos, final Level level, final int distance) {
         final double x = pos.getX() + 0.5;
         final double y = pos.getY() + 0.5;
         final double z = pos.getZ() + 0.5;
-        return level.getNearestPlayer(x, y, z, distance, false) != null;
+        return level.getNearestPlayer(x, y, z, 1, false) != null;
+    }
+
+    public static boolean isPlayerInFront(final BlockPos pos, final Level level, final UUID playerUuid, final Direction facing) {
+        final Player player = level.getPlayerByUUID(playerUuid);
+        if (player == null) {
+            return false;
+        }
+
+        final double x = pos.getX() + 0.5;
+        final double y = pos.getY() + 0.5;
+        final double z = pos.getZ() + 0.5;
+
+        final double dx = player.getX() - x;
+        final double dy = (player.getEyeY()) - y;
+        final double dz = player.getZ() - z;
+
+        final double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (length < 1e-6) {
+            return false;
+        }
+        final double ndx = dx / length;
+        final double ndz = dz / length;
+
+        final Vec3i dir = facing.getNormal();
+        final double fx = dir.getX();
+        final double fz = dir.getZ();
+
+        final double dot = ndx * fx + ndz * fz;
+        return dot > 0.5;
     }
 
     @SuppressWarnings("unchecked")

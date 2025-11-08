@@ -33,6 +33,8 @@
   "gui.playershells.shell_forge.status.decaying_1": "Water..",
   "gui.playershells.shell_forge.status.decaying_2": "Headache..",
   "gui.playershells.energy": "Energy: %s FE",
+  "gui.playershells.syringe.offhand_empty": "Offhand must be empty to use the syringe",
+  "gui.playershells.syringe.cannot_use_offhand": "Syringe cannot be used in offhand",
   "tooltip.playershells.dna_owner": "DNA Owner: %s",
   "death.playershells.transferred_to_shell_0": "Yet their spirit endures, reborn in another shell",
   "death.playershells.transferred_to_shell_1": "However, they have returned in a new shell to seek vengeance",

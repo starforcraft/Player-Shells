@@ -20,6 +20,10 @@ public class SyringeItemExtension implements IClientItemExtensions {
                                            final float partialTicks,
                                            final float equippedProgress,
                                            final float swingProgress) {
+        if (player.getOffhandItem().is(stackInHand.getItem())) {
+            return false;
+        }
+
         final int useDuration = stackInHand.getUseDuration(player);
         final int remainingUseTicks = player.getUseItemRemainingTicks();
         final int useTicks = useDuration - remainingUseTicks;
