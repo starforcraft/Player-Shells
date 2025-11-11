@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -161,8 +162,9 @@ public abstract class RadialMenuRenderer<T> {
                 shellPlayer.setPos(0, -yPos + 2, 0);
 
                 dispatcher.overrideCameraOrientation(new Quaternionf(0.0F, 0.0F, 0.0F, 1.0F));
+
+                Lighting.setupForEntityInInventory();
                 dispatcher.setRenderShadow(false);
-                RenderSystem.enableDepthTest();
                 RenderSystem.runAsFancy(() -> {
                     dispatcher.render(
                         shellPlayer,
@@ -176,8 +178,9 @@ public abstract class RadialMenuRenderer<T> {
                         LightTexture.FULL_BRIGHT
                     );
                 });
-                bufferSource.endBatch();
+                graphics.flush();
                 dispatcher.setRenderShadow(true);
+                Lighting.setupFor3DItems();
                 poseStack.popPose();
             }
         }

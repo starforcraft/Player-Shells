@@ -161,7 +161,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         }
     }
 
-    private void drainEnergyPassive() {
+    private void drainEnergyPassive() { //TODO: decying doesn't stop
         if (this.shellState == ShellStates.EXTERMINATE) {
             final int simulateExtract = this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get(), true);
             if (simulateExtract != Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get()) {
