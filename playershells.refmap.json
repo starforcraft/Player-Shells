@@ -1,0 +1,52 @@
+{
+  "mappings": {
+    "com/ultramega/playershells/mixin/RenderStateShardAccessor": {
+      "LIGHTMAP": "f_110152_:Lnet/minecraft/client/renderer/RenderStateShard$LightmapStateShard;",
+      "LEQUAL_DEPTH_TEST": "f_110113_:Lnet/minecraft/client/renderer/RenderStateShard$DepthTestStateShard;",
+      "NO_TRANSPARENCY": "f_110134_:Lnet/minecraft/client/renderer/RenderStateShard$TransparencyStateShard;",
+      "NO_CULL": "f_110110_:Lnet/minecraft/client/renderer/RenderStateShard$CullStateShard;",
+      "OVERLAY": "f_110154_:Lnet/minecraft/client/renderer/RenderStateShard$OverlayStateShard;"
+    },
+    "com/ultramega/playershells/mixin/MixinCamera": {
+      "setup": "Lnet/minecraft/client/Camera;m_90575_(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V"
+    },
+    "com/ultramega/playershells/mixin/MixinServerPlayer": {
+      "die": "Lnet/minecraft/server/level/ServerPlayer;m_6667_(Lnet/minecraft/world/damagesource/DamageSource;)V"
+    },
+    "com/ultramega/playershells/mixin/MixinEntityRenderDispatcher": {
+      "getRenderer": "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;m_114382_(Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/client/renderer/entity/EntityRenderer;",
+      "onResourceManagerReload": "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;m_6213_(Lnet/minecraft/server/packs/resources/ResourceManager;)V"
+    },
+    "com/ultramega/playershells/mixin/CameraAccessor": {
+      "detached": "f_90560_:Z",
+      "setRotation": "m_90572_(FF)V",
+      "setPosition": "m_90584_(DDD)V"
+    }
+  },
+  "data": {
+    "searge": {
+      "com/ultramega/playershells/mixin/RenderStateShardAccessor": {
+        "LIGHTMAP": "f_110152_:Lnet/minecraft/client/renderer/RenderStateShard$LightmapStateShard;",
+        "LEQUAL_DEPTH_TEST": "f_110113_:Lnet/minecraft/client/renderer/RenderStateShard$DepthTestStateShard;",
+        "NO_TRANSPARENCY": "f_110134_:Lnet/minecraft/client/renderer/RenderStateShard$TransparencyStateShard;",
+        "NO_CULL": "f_110110_:Lnet/minecraft/client/renderer/RenderStateShard$CullStateShard;",
+        "OVERLAY": "f_110154_:Lnet/minecraft/client/renderer/RenderStateShard$OverlayStateShard;"
+      },
+      "com/ultramega/playershells/mixin/MixinCamera": {
+        "setup": "Lnet/minecraft/client/Camera;m_90575_(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;ZZF)V"
+      },
+      "com/ultramega/playershells/mixin/MixinServerPlayer": {
+        "die": "Lnet/minecraft/server/level/ServerPlayer;m_6667_(Lnet/minecraft/world/damagesource/DamageSource;)V"
+      },
+      "com/ultramega/playershells/mixin/MixinEntityRenderDispatcher": {
+        "getRenderer": "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;m_114382_(Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/client/renderer/entity/EntityRenderer;",
+        "onResourceManagerReload": "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;m_6213_(Lnet/minecraft/server/packs/resources/ResourceManager;)V"
+      },
+      "com/ultramega/playershells/mixin/CameraAccessor": {
+        "detached": "f_90560_:Z",
+        "setRotation": "m_90572_(FF)V",
+        "setPosition": "m_90584_(DDD)V"
+      }
+    }
+  }
+}

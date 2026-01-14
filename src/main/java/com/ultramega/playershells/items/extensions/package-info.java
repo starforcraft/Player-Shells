@@ -1,7 +1,0 @@
-@ParametersAreNonnullByDefault
-@FieldsAndMethodsAreNonnullByDefault
-package com.ultramega.playershells.items.extensions;
-
-import com.ultramega.playershells.utils.FieldsAndMethodsAreNonnullByDefault;
-
-import javax.annotation.ParametersAreNonnullByDefault;

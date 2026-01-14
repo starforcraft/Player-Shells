@@ -1,0 +1,31 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+issueTrackerURL="https://github.com/starforcraft/Player-Shells/issues/new/choose"
+
+[[mods]]
+modId="playershells"
+version="1.20.1-0.0.9-forge"
+displayName="Player Shells"
+displayURL="https://www.curseforge.com/minecraft/mc-mods/player-shells"
+logoFile="logo.png"
+authors="Ultramega"
+description='''Adds Shell Forges that allow players to create and transfer into new Shells - essentially new bodies with their own inventory, experience level, and even gamemode.'''
+
+[[mixins]]
+config="playershells.mixins.json"
+
+[[dependencies.playershells]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.playershells]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.20.2)"
+    ordering="NONE"
+    side="BOTH"
+
