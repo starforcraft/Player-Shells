@@ -76,7 +76,7 @@ public final class CameraHandler {
             camera.detached = true;
             applyAnimation(camera, animClockMs);
         }
-        camera.setRotation(camera.getYRot(), camera.getXRot(), 0.0F);
+        camera.setRotation(camera.getYRot(), camera.getXRot());
     }
 
     public static void setMovingAnimation(@Nullable final BlockPos startPosition,
@@ -152,8 +152,8 @@ public final class CameraHandler {
                 final float t = (float) elapsed / (float) PHASE1_MS;
                 final Vec3 pos = lerpVec3(p0Start, p1Forward, t);
                 final float yaw = lerpAngle(startYaw, startMidYaw, t);
-                camera.setPosition(pos);
-                camera.setRotation(yaw, 0.0f, 0.0F);
+                camera.setPosition(pos.x, pos.y, pos.z);
+                camera.setRotation(yaw, 0.0f);
             } else if (elapsed <= forwardTotal) {
                 // Phase 2: rise for 2s, yaw fixed at startMidYaw, animate pitch 0 -> 90
                 final long phase2Elapsed = elapsed - PHASE1_MS;
@@ -168,12 +168,12 @@ public final class CameraHandler {
                     pitch = 90.0f;
                 }
 
-                camera.setPosition(pos);
-                camera.setRotation(startMidYaw, pitch, 0.0F);
+                camera.setPosition(pos.x, pos.y, pos.z);
+                camera.setRotation(startMidYaw, pitch);
             } else {
                 // Switch to reverse run: start from top
-                camera.setPosition(p2Up);
-                camera.setRotation(startMidYaw, 90.0f, 0.0F);
+                camera.setPosition(p2Up.x, p2Up.y, p2Up.z);
+                camera.setRotation(startMidYaw, 90.0f);
                 reversing = true;
                 animClockMs = 0L;
                 if (onFinished != null) {
@@ -195,8 +195,8 @@ public final class CameraHandler {
             // Reverse of Phase 2: descend (and slide) yaw fixed at endMidYaw
             final float tDown = (float) elapsed / (float) PHASE2_MS;
             final Vec3 pos = lerpVec3(p2Up, e1Forward, tDown);
-            camera.setPosition(pos);
-            camera.setRotation(endMidYaw, 90.0F, 0.0F);
+            camera.setPosition(pos.x, pos.y, pos.z);
+            camera.setRotation(endMidYaw, 90.0F);
         } else if (elapsed <= PHASE2_MS + PHASE1_MS) {
             // Reverse of Phase 1: move 1 block back to end + rotate from endMidYaw -> endYaw
             final long phase1BackElapsed = elapsed - PHASE2_MS;
@@ -213,11 +213,11 @@ public final class CameraHandler {
                 pitch = 0.0f;
             }
 
-            camera.setPosition(pos);
-            camera.setRotation(yaw, pitch, 0.0F);
+            camera.setPosition(pos.x, pos.y, pos.z);
+            camera.setRotation(yaw, pitch);
         } else {
-            camera.setPosition(e0End);
-            camera.setRotation(endYaw, 0.0f, 0.0F);
+            camera.setPosition(e0End.x, e0End.y, e0End.z);
+            camera.setRotation(endYaw, 0.0f);
             resetPosition();
         }
     }

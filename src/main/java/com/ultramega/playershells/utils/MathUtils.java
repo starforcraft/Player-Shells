@@ -1,28 +1,18 @@
 package com.ultramega.playershells.utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.mojang.serialization.Codec;
-import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -175,29 +165,5 @@ public final class MathUtils {
         }, multiMap -> multiMap != null ? multiMap.asMap().entrySet()
             .stream()
             .collect(Collectors.toMap(Entry::getKey, e -> Lists.newArrayList(e.getValue()))) : null);
-    }
-
-
-    public static <K, V> StreamCodec<RegistryFriendlyByteBuf, Multimap<K, V>> multiMapStreamCodec(final StreamCodec<ByteBuf, K> keyCodec,
-                                                                                                  final StreamCodec<ByteBuf, V> valueCodec) {
-        final StreamCodec<ByteBuf, List<V>> listOfV = valueCodec.apply(ByteBufCodecs.list());
-        final StreamCodec<RegistryFriendlyByteBuf, Map<K, List<V>>> mapCodec = ByteBufCodecs.map(HashMap::new, keyCodec, listOfV);
-
-        return mapCodec.map(
-            map -> {
-                final ListMultimap<K, V> multimap = ArrayListMultimap.create();
-                map.forEach((k, list) -> {
-                    if (list != null && !list.isEmpty()) {
-                        multimap.putAll(k, list);
-                    }
-                });
-                return multimap;
-            },
-            mm -> {
-                final Map<K, List<V>> out = new HashMap<>();
-                mm.asMap().forEach((k, coll) -> out.put(k, new ArrayList<>(coll)));
-                return out;
-            }
-        );
     }
 }

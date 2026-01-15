@@ -1,6 +1,6 @@
 package com.ultramega.playershells.utils;
 
-import net.neoforged.neoforge.energy.EnergyStorage;
+import net.minecraftforge.energy.EnergyStorage;
 
 public class ObservableEnergyStorage extends EnergyStorage {
     public ObservableEnergyStorage(final int capacity) {
@@ -21,18 +21,20 @@ public class ObservableEnergyStorage extends EnergyStorage {
 
     @Override
     public int receiveEnergy(final int toReceive, final boolean simulate) {
-        if (!simulate) {
+        final int received = super.receiveEnergy(toReceive, simulate);
+        if (!simulate && received > 0) {
             this.onEnergyChanged();
         }
-        return super.receiveEnergy(toReceive, simulate);
+        return received;
     }
 
     @Override
     public int extractEnergy(final int toExtract, final boolean simulate) {
-        if (!simulate) {
+        final int extracted = super.extractEnergy(toExtract, simulate);
+        if (!simulate && extracted > 0) {
             this.onEnergyChanged();
         }
-        return super.extractEnergy(toExtract, simulate);
+        return extracted;
     }
 
     public void onEnergyChanged() {

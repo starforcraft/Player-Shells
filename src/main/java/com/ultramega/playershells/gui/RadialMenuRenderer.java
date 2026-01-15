@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -253,7 +254,8 @@ public abstract class RadialMenuRenderer<T> {
                                   final float blue,
                                   final float alpha) {
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        final var vertexBuffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+        final BufferBuilder buffer = Tesselator.getInstance().getBuilder();
+        buffer.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
         final var matrix4f = graphics.pose().last().pose();
         final float draws = DRAWS * (sizeAngle / 360F);
         for (int i = 0; i <= draws; i++) {
@@ -261,12 +263,14 @@ public abstract class RadialMenuRenderer<T> {
             final float angle = Mth.DEG_TO_RAD * degrees;
             final float cos = Mth.cos(angle);
             final float sin = Mth.sin(angle);
-            vertexBuffer.addVertex(matrix4f, outer * cos, outer * sin, 0)
-                .setColor(red, green, blue, alpha);
-            vertexBuffer.addVertex(matrix4f, inner * cos, inner * sin, 0)
-                .setColor(red, green, blue, alpha);
+            buffer.vertex(matrix4f, outer * cos, outer * sin, 0)
+                .color(red, green, blue, alpha)
+                .endVertex();
+            buffer.vertex(matrix4f, inner * cos, inner * sin, 0)
+                .color(red, green, blue, alpha)
+                .endVertex();
         }
-        BufferUploader.drawWithShader(vertexBuffer.buildOrThrow());
+        BufferUploader.drawWithShader(buffer.end());
     }
 
     public record MousePos(double x, double y) {

@@ -14,8 +14,6 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.resources.PlayerSkin;
-import net.minecraft.client.resources.PlayerSkin.Model;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Final;
@@ -30,9 +28,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(EntityRenderDispatcher.class)
 public class MixinEntityRenderDispatcher {
     @Unique
-    private static final Map<PlayerSkin.Model, EntityRendererProvider<ShellEntity>> SHELL_PROVIDERS = Map.of(
-        Model.WIDE, (EntityRendererProvider) (context) -> new ShellRenderer(context, false),
-        Model.SLIM, (EntityRendererProvider) (context) -> new ShellRenderer(context, true));
+    private static final Map<String, EntityRendererProvider<ShellEntity>> SHELL_PROVIDERS = Map.of(
+        "default", (EntityRendererProvider) (context) -> new ShellRenderer(context, false),
+        "slim", (EntityRendererProvider) (context) -> new ShellRenderer(context, true));
 
     @Shadow
     @Final
@@ -51,14 +49,14 @@ public class MixinEntityRenderDispatcher {
     private Font font;
 
     @Unique
-    private Map<Model, EntityRenderer<? extends ShellEntity>> playershells$shellRenderers = Map.of();
+    private Map<String, EntityRenderer<? extends ShellEntity>> playershells$shellRenderers = Map.of();
 
     @Inject(method = "getRenderer", at = @At("HEAD"), cancellable = true)
     private <T extends Entity> void playerShells$getRenderer(final T entity, final CallbackInfoReturnable<EntityRenderer<? super T>> cir) {
         if (entity instanceof ShellEntity shell) {
-            final PlayerSkin.Model skinModel = shell.getSkin().model();
-            final EntityRenderer<? extends ShellEntity> entityrenderer = this.playershells$shellRenderers.get(skinModel);
-            cir.setReturnValue(entityrenderer != null ? (EntityRenderer) entityrenderer : (EntityRenderer) this.playershells$shellRenderers.get(Model.WIDE));
+            final String modelName = shell.getModelName();
+            final EntityRenderer<? extends ShellEntity> entityrenderer = this.playershells$shellRenderers.get(modelName);
+            cir.setReturnValue(entityrenderer != null ? (EntityRenderer) entityrenderer : (EntityRenderer) this.playershells$shellRenderers.get("default"));
         }
     }
 
@@ -70,8 +68,8 @@ public class MixinEntityRenderDispatcher {
     }
 
     @Unique
-    private static Map<PlayerSkin.Model, EntityRenderer<? extends ShellEntity>> playershells$createShellRenderers(final EntityRendererProvider.Context context) {
-        final ImmutableMap.Builder<PlayerSkin.Model, EntityRenderer<? extends ShellEntity>> builder = ImmutableMap.builder();
+    private static Map<String, EntityRenderer<? extends ShellEntity>> playershells$createShellRenderers(final EntityRendererProvider.Context context) {
+        final ImmutableMap.Builder<String, EntityRenderer<? extends ShellEntity>> builder = ImmutableMap.builder();
         SHELL_PROVIDERS.forEach((model, provider) -> {
             try {
                 builder.put(model, provider.create(context));

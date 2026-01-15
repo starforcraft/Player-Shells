@@ -1,34 +1,47 @@
 package com.ultramega.playershells.storage;
 
-import com.ultramega.playershells.utils.MathUtils;
 import com.ultramega.playershells.utils.PositionReference;
 
 import java.util.UUID;
 
-import com.google.common.collect.Multimap;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.FriendlyByteBuf;
 
 public record ShellState(UUID shellUUID, PositionReference shellForgePos, CompoundTag playerData, int shellCreationProgress) {
-    public static final StreamCodec<ByteBuf, ShellState> STREAM_CODEC = StreamCodec.composite(
-        UUIDUtil.STREAM_CODEC, ShellState::shellUUID,
-        PositionReference.STREAM_CODEC, ShellState::shellForgePos,
-        ByteBufCodecs.COMPOUND_TAG, ShellState::playerData,
-        ByteBufCodecs.INT, ShellState::shellCreationProgress,
-        ShellState::new
-    );
+    private static final String SHELL_UUID_TAG = "shell_uuid";
+    private static final String SHELL_FORGE_POS_TAG = "shell_forge_pos";
+    private static final String PLAYER_DATA_TAG = "player_data";
+    private static final String CREATION_PROGRESS_TAG = "creation_progress";
 
-    public static final Codec<ShellState> CODEC = RecordCodecBuilder.create(in -> in.group(
-        UUIDUtil.CODEC.fieldOf("shellUUID").forGetter(ShellState::shellUUID),
-        PositionReference.CODEC.fieldOf("oldShellForgePos").forGetter(ShellState::shellForgePos),
-        CompoundTag.CODEC.fieldOf("playerData").forGetter(ShellState::playerData),
-        Codec.INT.fieldOf("shellCreationProgress").forGetter(ShellState::shellCreationProgress)
-    ).apply(in, ShellState::new));
+    public void write(final FriendlyByteBuf buf) {
+        buf.writeUUID(this.shellUUID);
+        this.shellForgePos.write(buf);
+        buf.writeNbt(this.playerData);
+        buf.writeVarInt(this.shellCreationProgress);
+    }
 
-    public static final Codec<Multimap<UUID, ShellState>> MULTIMAP_CODEC = MathUtils.multiMapCodec(Codec.STRING.xmap(UUID::fromString, UUID::toString), ShellState.CODEC);
+    public static ShellState read(final FriendlyByteBuf buf) {
+        final UUID shellUuid = buf.readUUID();
+        final PositionReference pos = PositionReference.read(buf);
+        final CompoundTag playerData = buf.readNbt();
+        final int progress = buf.readVarInt();
+        return new ShellState(shellUuid, pos, playerData == null ? new CompoundTag() : playerData, progress);
+    }
+
+    public CompoundTag toNbt() {
+        final CompoundTag tag = new CompoundTag();
+        tag.putUUID(SHELL_UUID_TAG, this.shellUUID);
+        tag.put(SHELL_FORGE_POS_TAG, this.shellForgePos.toNbt());
+        tag.put(PLAYER_DATA_TAG, this.playerData);
+        tag.putInt(CREATION_PROGRESS_TAG, this.shellCreationProgress);
+        return tag;
+    }
+
+    public static ShellState fromNbt(final CompoundTag tag) {
+        final UUID uuid = tag.getUUID(SHELL_UUID_TAG);
+        final PositionReference pos = PositionReference.fromNbt(tag.getCompound(SHELL_FORGE_POS_TAG));
+        final CompoundTag playerData = tag.getCompound(PLAYER_DATA_TAG);
+        final int progress = tag.getInt(CREATION_PROGRESS_TAG);
+        return new ShellState(uuid, pos, playerData, progress);
+    }
 }

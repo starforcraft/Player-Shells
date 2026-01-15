@@ -3,26 +3,26 @@ package com.ultramega.playershells.gui.layer;
 import com.ultramega.playershells.registry.ModItems;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.client.gui.overlay.ForgeGui;
+import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 import static com.ultramega.playershells.items.SyringeItem.MAX_EXTRACT_DURATION;
 import static com.ultramega.playershells.items.SyringeItem.PULSE_POINTS;
 import static com.ultramega.playershells.utils.MathUtils.smoothstep01;
 
-public class BloodLayer implements LayeredDraw.Layer {
-    private static final ResourceLocation UNDERWATER_LOCATION = ResourceLocation.fromNamespaceAndPath(MODID, "textures/gui/blood_overlay.png");
+public class BloodLayer implements IGuiOverlay {
+    private static final ResourceLocation UNDERWATER_LOCATION = new ResourceLocation(MODID, "textures/gui/blood_overlay.png");
 
     private static final float PULSE_WIDTH = 0.02f;
     private static final float MAX_ALPHA = 0.4f;
 
     @Override
-    public void render(final GuiGraphics graphics, final DeltaTracker deltaTracker) {
+    public void render(final ForgeGui gui, final GuiGraphics graphics, final float partialTick, final int screenWidth, final int screenHeight) {
         final Minecraft mc = Minecraft.getInstance();
         final Player player = mc.player;
 
@@ -34,7 +34,7 @@ public class BloodLayer implements LayeredDraw.Layer {
             return;
         }
 
-        final float usePos = (float) (player.getMainHandItem().getUseDuration(player) - player.getUseItemRemainingTicks()) / MAX_EXTRACT_DURATION;
+        final float usePos = (float) (player.getMainHandItem().getUseDuration() - player.getUseItemRemainingTicks()) / MAX_EXTRACT_DURATION;
         final float alpha = pulseAlpha(usePos);
         if (alpha > 0.01f) {
             RenderSystem.disableDepthTest();

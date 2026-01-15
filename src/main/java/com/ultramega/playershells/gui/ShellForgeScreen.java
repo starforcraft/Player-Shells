@@ -4,6 +4,7 @@ import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellState
 import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.gui.widgets.ProgressBarWidget;
 import com.ultramega.playershells.gui.widgets.ShellButton;
+import com.ultramega.playershells.network.ModNetworking;
 import com.ultramega.playershells.packet.c2s.ShellButtonPressedPacket;
 import com.ultramega.playershells.registry.ModSoundEvents;
 import com.ultramega.playershells.utils.SoundHandler;
@@ -20,13 +21,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 
 public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContainerMenu> {
-    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(MODID, "textures/gui/shell_forge.png");
-    private static final ResourceLocation SLOT_SPRITE = ResourceLocation.withDefaultNamespace("container/slot");
+    private static final ResourceLocation BACKGROUND = new ResourceLocation(MODID, "textures/gui/shell_forge.png");
+    private static final ResourceLocation SLOT_SPRITE = new ResourceLocation(MODID, "textures/gui/slot.png");
     private static final int ENERGY_BAR_HEIGHT = 52;
     private static final float STATUS_TEXT_SCALE = 0.5F;
 
@@ -55,7 +55,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
                     this.getMenu().getBlockEntity().getLevel().random, this.getMenu().getBlockEntity().getBlockPos());
             }
 
-            PacketDistributor.sendToServer(new ShellButtonPressedPacket(this.getMenu().getBlockEntity().getBlockPos()));
+            ModNetworking.sendToServer(new ShellButtonPressedPacket(this.getMenu().getBlockEntity().getBlockPos()));
         }, this.getMenu().getBlockEntity());
         this.addRenderableWidget(this.shellButton);
 
@@ -89,9 +89,10 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
 
     @Override
     protected void renderBg(final GuiGraphics graphics, final float partialTicks, final int mouseX, final int mouseY) {
+        super.renderBackground(graphics);
         graphics.blit(BACKGROUND, this.leftPos, this.topPos, 0, 0, this.getXSize(), this.getYSize());
         if (this.getMenu().getBlockEntity().getShellState() == ShellStates.CREATE) {
-            graphics.blitSprite(SLOT_SPRITE, this.leftPos + 79, this.topPos + 16, 0, 18, 18);
+            graphics.blit(SLOT_SPRITE, this.leftPos + 79, this.topPos + 16, 0, 0, 18, 18, 18, 18);
         }
 
         final PoseStack poseStack = graphics.pose();

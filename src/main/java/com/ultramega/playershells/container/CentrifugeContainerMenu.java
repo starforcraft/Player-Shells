@@ -2,9 +2,9 @@ package com.ultramega.playershells.container;
 
 import com.ultramega.playershells.blockentities.CentrifugeBlockEntity;
 import com.ultramega.playershells.registry.ModBlocks;
-import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.registry.ModMenuTypes;
+import com.ultramega.playershells.utils.OwnerData;
 
 import java.util.Objects;
 
@@ -13,19 +13,22 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.SlotItemHandler;
+import net.minecraftforge.items.wrapper.InvWrapper;
 
 import static com.ultramega.playershells.blockentities.CentrifugeBlockEntity.PROCESSING_TOTAL_TIME;
 
 public class CentrifugeContainerMenu extends AbstractContainerMenu {
     private final CentrifugeBlockEntity blockEntity;
     private final ContainerLevelAccess access;
+    private final ContainerData data;
 
     public CentrifugeContainerMenu(final int containerId, final Inventory playerInventory, final FriendlyByteBuf data) {
         this(containerId, playerInventory, getBlockEntity(playerInventory, data), ContainerLevelAccess.NULL);
@@ -38,11 +41,12 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
         super(ModMenuTypes.CENTRIFUGE.get(), containerId);
         this.blockEntity = blockEntity;
         this.access = access;
+        this.data = new SimpleContainerData(2);
 
         this.addSlot(new SlotItemHandler(blockEntity.inventoryHandler, 0, 56, 34) {
             @Override
             public boolean mayPlace(final ItemStack stack) {
-                return stack.is(ModItems.BLOOD_SYRINGE.get()) && stack.has(ModDataComponentTypes.OWNER_PLAYER.get());
+                return stack.is(ModItems.BLOOD_SYRINGE.get()) && OwnerData.hasOnStack(stack);
             }
         });
         this.addSlot(new SlotItemHandler(blockEntity.inventoryHandler, 1, 116, 35) {
@@ -62,6 +66,8 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
         for (int i = 0; i < 9; i++) {
             this.addSlot(new SlotItemHandler(itemHandler, i, 8 + i * 18, 142));
         }
+
+        this.addDataSlots(this.data);
     }
 
     @Override
@@ -114,6 +120,15 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
         return AbstractContainerMenu.stillValid(this.access, player, ModBlocks.CENTRIFUGE.get());
     }
 
+    @Override
+    public void broadcastChanges() {
+        if (this.blockEntity.getLevel() != null && !this.blockEntity.getLevel().isClientSide()) {
+            this.data.set(0, this.blockEntity.getProcessingProgress());
+            this.data.set(1, this.blockEntity.energyStorage.getEnergyStored());
+        }
+        super.broadcastChanges();
+    }
+
     public CentrifugeBlockEntity getBlockEntity() {
         return this.blockEntity;
     }
@@ -129,7 +144,11 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
     }
 
     public float getProcessingProgress() {
-        final int progress = this.blockEntity.getProcessingProgress();
+        final int progress = this.data.get(0);
         return progress != 0 ? Mth.clamp((float) progress / (float) PROCESSING_TOTAL_TIME, 0.0F, 1.0F) : 0.0F;
+    }
+
+    public int getEnergyStored() {
+        return this.data.get(1);
     }
 }

@@ -5,8 +5,8 @@ import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellState
 import com.ultramega.playershells.registry.ModItems;
 
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.SlotItemHandler;
 
 public class ShellSlotItemHandler extends SlotItemHandler {
     private final ShellForgeBlockEntity shellForge;

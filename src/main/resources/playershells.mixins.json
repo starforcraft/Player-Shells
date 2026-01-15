@@ -2,12 +2,14 @@
   "required": true,
   "minVersion": "0.8.4",
   "package": "com.ultramega.playershells.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "playershells.refmap.json",
   "mixins": [
     "MixinServerPlayer"
   ],
   "client": [
     "MixinCamera",
-    "MixinEntityRenderDispatcher"
+    "MixinEntityRenderDispatcher",
+    "RenderStateShardAccessor"
   ]
 }

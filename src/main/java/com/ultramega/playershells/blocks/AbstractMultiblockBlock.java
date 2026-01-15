@@ -33,7 +33,7 @@ public class AbstractMultiblockBlock extends Block {
     }
 
     @Override
-    protected BlockState updateShape(final BlockState state,
+    public BlockState updateShape(final BlockState state,
                                      final Direction direction,
                                      final BlockState neighborState,
                                      final LevelAccessor level,
@@ -70,7 +70,7 @@ public class AbstractMultiblockBlock extends Block {
     }
 
     @Override
-    protected boolean canSurvive(final BlockState state, final LevelReader level, final BlockPos pos) {
+    public boolean canSurvive(final BlockState state, final LevelReader level, final BlockPos pos) {
         final BlockPos blockpos = pos.below();
         final BlockState blockstate = level.getBlockState(blockpos);
         return state.getValue(HALF) == DoubleBlockHalf.LOWER ? blockstate.isFaceSturdy(level, blockpos, Direction.UP) : blockstate.is(this);
@@ -82,7 +82,7 @@ public class AbstractMultiblockBlock extends Block {
     }
 
     @Override
-    protected BlockState mirror(final BlockState state, final Mirror mirror) {
+    public BlockState mirror(final BlockState state, final Mirror mirror) {
         return mirror == Mirror.NONE ? state : state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
 

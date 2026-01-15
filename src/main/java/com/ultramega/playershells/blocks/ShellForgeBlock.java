@@ -4,6 +4,7 @@ import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.gui.ShellSelectionOverlay;
+import com.ultramega.playershells.network.ModNetworking;
 import com.ultramega.playershells.packet.c2s.LeaveShellForgePacket;
 import com.ultramega.playershells.packet.c2s.TransferPlayerPacket;
 import com.ultramega.playershells.packet.c2s.ValidateShellForgePacket;
@@ -19,12 +20,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -42,7 +42,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.network.NetworkHooks;
 
 import static com.ultramega.playershells.utils.MathUtils.createTickerHelper;
 import static com.ultramega.playershells.utils.MathUtils.getMinVelocity;
@@ -109,25 +109,14 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack,
-                                              final BlockState state,
-                                              final Level level,
-                                              final BlockPos pos,
-                                              final Player player,
-                                              final InteractionHand hand,
-                                              final BlockHitResult hitResult) {
+    public InteractionResult use(final BlockState state,
+                                 final Level level,
+                                 final BlockPos pos,
+                                 final Player player,
+                                 final InteractionHand hand,
+                                 final BlockHitResult hitResult) {
         final boolean handled = this.handleUseCommon(level, state, pos, player);
-        return handled ? ItemInteractionResult.sidedSuccess(level.isClientSide()) : ItemInteractionResult.FAIL;
-    }
-
-    @Override
-    protected InteractionResult useWithoutItem(final BlockState state,
-                                               final Level level,
-                                               final BlockPos pos,
-                                               final Player player,
-                                               final BlockHitResult hitResult) {
-        final boolean handled = this.handleUseCommon(level, state, pos, player);
-        return handled ? InteractionResult.sidedSuccess(level.isClientSide()) : InteractionResult.FAIL;
+        return handled ? InteractionResult.sidedSuccess(level.isClientSide()) : InteractionResult.PASS;
     }
 
     private boolean handleUseCommon(final Level level,
@@ -145,7 +134,9 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
         if (!level.isClientSide()) {
             // Open menu if there's a shell or SHIFT is held; otherwise start going in
             if (hasShellInside || player.isShiftKeyDown()) {
-                player.openMenu(shellForge, shellForgePos);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    NetworkHooks.openScreen(serverPlayer, shellForge, shellForgePos);
+                }
                 return true;
             }
 
@@ -186,7 +177,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected void entityInside(final BlockState state, final Level level, final BlockPos pos, final Entity entity) {
+    public void entityInside(final BlockState state, final Level level, final BlockPos pos, final Entity entity) {
         if (!(entity instanceof Player player) || !isBottomHalf(state) || !(level.getBlockEntity(pos) instanceof ShellForgeBlockEntity shellForge)) {
             return;
         }
@@ -215,17 +206,17 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
                 return;
             }
 
-            PacketDistributor.sendToServer(new ValidateShellForgePacket());
+            ModNetworking.sendToServer(new ValidateShellForgePacket());
 
             // Play camera animation
             final BlockPos newShellForgePos = shellEntry.shellForgePos().get().pos().immutable();
             final Direction newShellForgeFacing = shellEntry.shellForgePos().get().facing();
             CameraHandler.setMovingAnimation(thisShellForgePos.above(), thisFacing, newShellForgePos.above(), newShellForgeFacing, () -> {
-                PacketDistributor.sendToServer(new TransferPlayerPacket(thisShellForgePosReference, shellEntry.shellForgePos().get()));
+                ModNetworking.sendToServer(new TransferPlayerPacket(thisShellForgePosReference, shellEntry.shellForgePos().get()));
             });
         }, () -> {
             this.blockShellSelection = true;
-            PacketDistributor.sendToServer(new LeaveShellForgePacket(thisShellForgePos));
+            ModNetworking.sendToServer(new LeaveShellForgePacket(thisShellForgePos));
         });
     }
 
@@ -262,7 +253,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean movedByPiston) {
+    public void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean movedByPiston) {
         // TODO: don't drop shell forge when breaking the upper block in creative
         super.onRemove(state, level, pos, newState, movedByPiston);
 

@@ -18,6 +18,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
@@ -25,13 +26,12 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.client.model.data.ModelData;
+import net.minecraftforge.client.model.data.ModelData;
 import org.joml.Matrix4f;
 
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
@@ -160,22 +160,18 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
                 final int[] color2 = interpolateGradient(midT2, DARK_ORANGE, ORANGE, YELLOW);
 
                 // Build vertices
-                vertexConsumer.addVertex(matrix, baseX - w1 / 2, y1, baseZ)
-                    .setColor(color1[0], color1[1], color1[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
-                vertexConsumer.addVertex(matrix, baseX - w2 / 2, y2, baseZ)
-                    .setColor(color2[0], color2[1], color2[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
-                vertexConsumer.addVertex(matrix, baseX + w2 / 2, y2, baseZ)
-                    .setColor(color2[0], color2[1], color2[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
-                vertexConsumer.addVertex(matrix, baseX + w1 / 2, y1, baseZ)
-                    .setColor(color1[0], color1[1], color1[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
+                vertexConsumer.vertex(matrix, baseX - w1 / 2, y1, baseZ)
+                    .color(color1[0], color1[1], color1[2], 200)
+                    .endVertex();
+                vertexConsumer.vertex(matrix, baseX - w2 / 2, y2, baseZ)
+                    .color(color2[0], color2[1], color2[2], 200)
+                    .endVertex();
+                vertexConsumer.vertex(matrix, baseX + w2 / 2, y2, baseZ)
+                    .color(color2[0], color2[1], color2[2], 200)
+                    .endVertex();
+                vertexConsumer.vertex(matrix, baseX + w1 / 2, y1, baseZ)
+                    .color(color1[0], color1[1], color1[2], 200)
+                    .endVertex();
             }
 
             poseStack.popPose();
@@ -243,24 +239,40 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
         return t * 60.0f;
     }
 
-    @Override
     public AABB getRenderBoundingBox(final ShellForgeBlockEntity blockEntity) {
         return new AABB(blockEntity.getBlockPos()).expandTowards(0, isBottomHalf(blockEntity.getBlockState()) ? 1 : -1, 0);
     }
 
     public static ShellEntity getPlayerShellFromCache(final ClientLevel level, final UUID playerUuid, final UUID shellUuid, final Map<UUID, ShellEntity> cache) {
-        return cache.computeIfAbsent(shellUuid, ignored -> {
-            final ShellEntity player = new ShellEntity(level, new GameProfile(playerUuid, ""));
-            final ShellState shellState = ClientShellData.INSTANCE.get(playerUuid, shellUuid);
-            if (shellState != null) {
+        final var connection = Minecraft.getInstance().getConnection();
+        final PlayerInfo info = connection != null ? connection.getPlayerInfo(playerUuid) : null;
+        final GameProfile desiredProfile = info != null ? info.getProfile() : new GameProfile(playerUuid, "");
+
+        ShellEntity player = cache.get(shellUuid);
+        if (player == null
+            || player.level() != level
+            || (hasTextures(desiredProfile) && !hasTextures(player.getGameProfile()))) {
+            player = new ShellEntity(level, desiredProfile);
+            cache.put(shellUuid, player);
+        }
+
+        final ShellState shellState = ClientShellData.INSTANCE.get(playerUuid, shellUuid);
+        if (shellState != null) {
+            final int version = ClientShellData.INSTANCE.getVersion();
+            if (player.getLastClientShellDataVersion() != version) {
                 player.load(shellState.playerData());
+                player.setLastClientShellDataVersion(version);
             }
+        }
 
-            player.setPose(Pose.STANDING);
-            player.setXRot(0f);
+        player.setPose(Pose.STANDING);
+        player.setXRot(0f);
 
-            return player;
-        });
+        return player;
+    }
+
+    private static boolean hasTextures(final GameProfile profile) {
+        return profile.getProperties().containsKey("textures") && !profile.getProperties().get("textures").isEmpty();
     }
 
     public static class ShaderForcingBuffer implements MultiBufferSource {

@@ -17,7 +17,6 @@ public class ShellRenderer extends PlayerRenderer {
                                  final Component displayName,
                                  final PoseStack poseStack,
                                  final MultiBufferSource bufferSource,
-                                 final int packedLight,
-                                 final float partialTick) {
+                                 final int packedLight) {
     }
 }

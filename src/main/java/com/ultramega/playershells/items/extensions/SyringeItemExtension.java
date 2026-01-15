@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 public class SyringeItemExtension implements IClientItemExtensions {
     @Override
@@ -24,7 +24,7 @@ public class SyringeItemExtension implements IClientItemExtensions {
             return false;
         }
 
-        final int useDuration = stackInHand.getUseDuration(player);
+        final int useDuration = stackInHand.getUseDuration();
         final int remainingUseTicks = player.getUseItemRemainingTicks();
         final int useTicks = useDuration - remainingUseTicks;
 

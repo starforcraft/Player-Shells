@@ -1,6 +1,7 @@
 package com.ultramega.playershells.storage;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.network.ModNetworking;
 import com.ultramega.playershells.packet.s2c.SyncShellDataPacket;
 
 import java.util.Collection;
@@ -14,31 +15,42 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimap;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import static com.ultramega.playershells.utils.MathUtils.findTargetLevel;
 import static java.util.Objects.requireNonNull;
 
 public class ShellSavedData extends SavedData {
+    private static final String ENTRIES_TAG = "entries";
+    private static final String PLAYER_UUID_TAG = "player_uuid";
+    private static final String SHELL_STATE_TAG = "shell_state";
+
     private final Multimap<UUID, ShellState> entries;
 
     public ShellSavedData() {
         this.entries = ArrayListMultimap.create();
     }
 
-    public ShellSavedData(final CompoundTag tag, final HolderLookup.Provider provider) {
+    public ShellSavedData(final CompoundTag tag) {
         this.entries = ArrayListMultimap.create();
-        this.entries.putAll(ShellState.MULTIMAP_CODEC.decode(provider.createSerializationContext(NbtOps.INSTANCE), tag)
-            .getOrThrow()
-            .getFirst());
+        if (tag.contains(ENTRIES_TAG, CompoundTag.TAG_LIST)) {
+            final ListTag list = tag.getList(ENTRIES_TAG, CompoundTag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                final CompoundTag entryTag = list.getCompound(i);
+                if (!entryTag.hasUUID(PLAYER_UUID_TAG) || !entryTag.contains(SHELL_STATE_TAG, CompoundTag.TAG_COMPOUND)) {
+                    continue;
+                }
+                final UUID playerUuid = entryTag.getUUID(PLAYER_UUID_TAG);
+                final ShellState shellState = ShellState.fromNbt(entryTag.getCompound(SHELL_STATE_TAG));
+                this.entries.put(playerUuid, shellState);
+            }
+        }
     }
 
     public void add(final UUID playerUuid, final ShellState shellState) {
@@ -103,8 +115,20 @@ public class ShellSavedData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(final CompoundTag tag, final HolderLookup.Provider provider) {
-        return (CompoundTag) ShellState.MULTIMAP_CODEC.encode(this.entries, provider.createSerializationContext(NbtOps.INSTANCE), tag).getOrThrow();
+    public CompoundTag save(final CompoundTag tag) {
+        final ListTag list = new ListTag();
+        for (final Entry<UUID, ShellState> entry : this.entries.entries()) {
+            final ShellState shellState = entry.getValue();
+            if (shellState == null) {
+                continue;
+            }
+            final CompoundTag entryTag = new CompoundTag();
+            entryTag.putUUID(PLAYER_UUID_TAG, entry.getKey());
+            entryTag.put(SHELL_STATE_TAG, shellState.toNbt());
+            list.add(entryTag);
+        }
+        tag.put(ENTRIES_TAG, list);
+        return tag;
     }
 
     @Override
@@ -130,7 +154,12 @@ public class ShellSavedData extends SavedData {
                 continue;
             }
 
-            final BlockEntity blockEntity = targetLevel.getBlockEntity(shellState.shellForgePos().pos());
+            final BlockPos pos = shellState.shellForgePos().pos();
+            if (!targetLevel.hasChunkAt(pos)) {
+                continue;
+            }
+
+            final BlockEntity blockEntity = targetLevel.getBlockEntity(pos);
             if (!(blockEntity instanceof ShellForgeBlockEntity shellForge)) {
                 iterator.remove();
                 continue;
@@ -144,11 +173,11 @@ public class ShellSavedData extends SavedData {
     }
 
     public void syncToClient() {
-        PacketDistributor.sendToAllPlayers(new SyncShellDataPacket(ImmutableListMultimap.copyOf(this.entries)));
+        ModNetworking.sendToAll(new SyncShellDataPacket(ImmutableListMultimap.copyOf(this.entries)));
     }
 
     public static ShellSavedData getShellData(final ServerLevel level) {
         final ServerLevel serverLevel = requireNonNull(level.getServer().getLevel(Level.OVERWORLD));
-        return serverLevel.getDataStorage().computeIfAbsent(new Factory<>(ShellSavedData::new, ShellSavedData::new), "player_shells");
+        return serverLevel.getDataStorage().computeIfAbsent(ShellSavedData::new, ShellSavedData::new, "player_shells");
     }
 }

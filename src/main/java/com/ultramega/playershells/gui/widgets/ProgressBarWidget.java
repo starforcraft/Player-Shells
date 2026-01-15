@@ -16,9 +16,9 @@ import net.minecraft.resources.ResourceLocation;
 import static com.ultramega.playershells.PlayerShells.MODID;
 
 public class ProgressBarWidget extends AbstractWidget {
-    private static final ResourceLocation GREEN_SPRITE = ResourceLocation.fromNamespaceAndPath(MODID, "widget/green_progress_bar");
-    private static final ResourceLocation RED_SPRITE = ResourceLocation.fromNamespaceAndPath(MODID, "widget/red_progress_bar");
-    private static final ResourceLocation SPRITE_BACKGROUND = ResourceLocation.fromNamespaceAndPath(MODID, "widget/progress_bar_background");
+    private static final ResourceLocation GREEN_SPRITE = new ResourceLocation(MODID, "textures/gui/sprites/widget/green_progress_bar.png");
+    private static final ResourceLocation RED_SPRITE = new ResourceLocation(MODID, "textures/gui/sprites/widget/red_progress_bar.png");
+    private static final ResourceLocation SPRITE_BACKGROUND = new ResourceLocation(MODID, "textures/gui/sprites/widget/progress_bar_background.png");
 
     private final ShellForgeBlockEntity shellForge;
     private final IntSupplier progressSupplier;
@@ -32,14 +32,14 @@ public class ProgressBarWidget extends AbstractWidget {
 
     @Override
     protected void renderWidget(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
-        graphics.blitSprite(SPRITE_BACKGROUND, 82, 18, 0, 0, this.getX() - 1, this.getY() - 1, 82, 18);
+        graphics.blit(SPRITE_BACKGROUND, this.getX() - 1, this.getY() - 1, 0, 0, 82, 18, 82, 18);
 
         final Minecraft mc = Minecraft.getInstance();
         final int progress = this.progressSupplier.getAsInt();
 
         final int filledWidth = (int) ((progress / 100.0) * this.getWidth());
-        graphics.blitSprite(this.shellForge.getShellState() == ShellStates.EXTERMINATING ? RED_SPRITE : GREEN_SPRITE, 80, 16, 0, 0,
-            this.getX(), this.getY(), filledWidth, this.getHeight());
+        graphics.blit(this.shellForge.getShellState() == ShellStates.EXTERMINATING ? RED_SPRITE : GREEN_SPRITE,
+            this.getX(), this.getY(), 0, 0, filledWidth, this.getHeight(), 80, 16);
 
         final String progressText = progress + "%";
         final int x = this.getX() + (this.getWidth() - mc.font.width(progressText)) / 2;

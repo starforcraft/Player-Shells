@@ -1,33 +1,33 @@
 package com.ultramega.playershells.blockentities;
 
 import com.ultramega.playershells.Config;
+import com.ultramega.playershells.blocks.AbstractMultiblockBlock;
 import com.ultramega.playershells.blocks.ShellForgeBlock.BoolProperty;
 import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModBlocks;
-import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.registry.ModSoundEvents;
 import com.ultramega.playershells.storage.ShellSavedData;
 import com.ultramega.playershells.storage.ShellState;
 import com.ultramega.playershells.utils.ObservableEnergyStorage;
+import com.ultramega.playershells.utils.OwnerData;
 import com.ultramega.playershells.utils.PositionReference;
 import com.ultramega.playershells.utils.ShellPlayer;
 import com.ultramega.playershells.utils.SoundHandler;
 
 import java.util.Objects;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.Nameable;
@@ -40,9 +40,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraft.world.phys.AABB;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
 
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.OPEN;
@@ -69,6 +76,9 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             ShellForgeBlockEntity.this.setChanged();
         }
     };
+
+    private LazyOptional<IEnergyStorage> energyCapability = LazyOptional.of(() -> this.energyStorage);
+    private LazyOptional<IItemHandler> itemHandlerCapability = LazyOptional.of(() -> this.inventoryHandler);
 
     private UUID playerUuid = EMPTY_UUID;
     private PlayerStates playerState = PlayerStates.NONE;
@@ -213,7 +223,8 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             return;
         }
 
-        final UUID playerUUID = Objects.requireNonNull(this.inventoryHandler.getStackInSlot(0).get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
+        final OwnerData ownerData = OwnerData.getFromStack(this.inventoryHandler.getStackInSlot(0));
+        final UUID playerUUID = Objects.requireNonNull(ownerData, "OwnerData must exist when canCreateShell() is true").playerUUID();
 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
         this.inventoryHandler.extractItem(0, 64, false);
@@ -240,8 +251,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     private CompoundTag createFreshPlayerData(final ServerLevel serverLevel) {
-        final CommonListenerCookie cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), ""), false);
-        return new ServerPlayer(serverLevel.getServer(), serverLevel, cookie.gameProfile(), cookie.clientInformation())
+        return FakePlayerFactory.get(serverLevel, new GameProfile(UUID.randomUUID(), "PlayerShells"))
             .saveWithoutId(new CompoundTag());
     }
 
@@ -249,7 +259,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         final int energyNeeded = Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get();
 
         final ItemStack stack = this.inventoryHandler.getStackInSlot(0);
-        if (stack.isEmpty() || !stack.is(ModItems.DNA) || !stack.has(ModDataComponentTypes.OWNER_PLAYER.get())) {
+        if (stack.isEmpty() || !stack.is(ModItems.DNA.get()) || OwnerData.getFromStack(stack) == null) {
             return false;
         }
 
@@ -295,14 +305,14 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
-    protected void loadAdditional(final CompoundTag tag, final HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(final CompoundTag tag) {
+        super.load(tag);
 
         if (tag.contains("inv")) {
-            this.inventoryHandler.deserializeNBT(registries, tag.getCompound("inv"));
+            this.inventoryHandler.deserializeNBT(tag.getCompound("inv"));
         }
         if (tag.contains("energy")) {
-            this.energyStorage.deserializeNBT(registries, tag.get("energy"));
+            this.energyStorage.deserializeNBT(tag.get("energy"));
         }
         if (tag.contains("playerUuid")) {
             this.playerUuid = tag.getUUID("playerUuid");
@@ -325,11 +335,11 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag, final HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(final CompoundTag tag) {
+        super.saveAdditional(tag);
 
-        tag.put("inv", this.inventoryHandler.serializeNBT(registries));
-        tag.put("energy", this.energyStorage.serializeNBT(registries));
+        tag.put("inv", this.inventoryHandler.serializeNBT());
+        tag.put("energy", this.energyStorage.serializeNBT());
         tag.putUUID("playerUuid", this.playerUuid);
         tag.putInt("playerState", this.playerState.ordinal());
         tag.putUUID("shellUuid", this.shellUuid);
@@ -339,9 +349,9 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
-    public CompoundTag getUpdateTag(final HolderLookup.Provider registries) {
+    public CompoundTag getUpdateTag() {
         final CompoundTag tag = new CompoundTag();
-        this.saveAdditional(tag, registries);
+        this.saveAdditional(tag);
         return tag;
     }
 
@@ -351,12 +361,42 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
+    public AABB getRenderBoundingBox() {
+        return new AABB(this.getBlockPos()).expandTowards(0, AbstractMultiblockBlock.isBottomHalf(this.getBlockState()) ? 1 : -1, 0);
+    }
+
+    @Override
     public void setChanged() {
         super.setChanged();
 
         if (this.level != null && !this.level.isClientSide()) {
             this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
         }
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        this.energyCapability.invalidate();
+        this.itemHandlerCapability.invalidate();
+    }
+
+    @Override
+    public void reviveCaps() {
+        super.reviveCaps();
+        this.energyCapability = LazyOptional.of(() -> this.energyStorage);
+        this.itemHandlerCapability = LazyOptional.of(() -> this.inventoryHandler);
+    }
+
+    @Override
+    public <T> LazyOptional<T> getCapability(final Capability<T> cap, @Nullable final Direction side) {
+        if (cap == ForgeCapabilities.ENERGY) {
+            return this.energyCapability.cast();
+        }
+        if (cap == ForgeCapabilities.ITEM_HANDLER) {
+            return this.itemHandlerCapability.cast();
+        }
+        return super.getCapability(cap, side);
     }
 
     public void setPlayerUuid(final UUID uuid) {

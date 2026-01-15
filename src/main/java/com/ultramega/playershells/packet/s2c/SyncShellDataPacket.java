@@ -4,32 +4,36 @@ import com.ultramega.playershells.storage.ClientShellData;
 import com.ultramega.playershells.storage.ShellState;
 
 import java.util.UUID;
+import java.util.function.Supplier;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import net.minecraft.core.UUIDUtil;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.network.NetworkEvent;
 
-import static com.ultramega.playershells.PlayerShells.MODID;
-import static com.ultramega.playershells.utils.MathUtils.multiMapStreamCodec;
-
-public record SyncShellDataPacket(Multimap<UUID, ShellState> entries) implements CustomPacketPayload {
-    public static final Type<SyncShellDataPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "sync_shell_data_packet"));
-    public static final StreamCodec<RegistryFriendlyByteBuf, SyncShellDataPacket> STREAM_CODEC = StreamCodec.composite(
-        multiMapStreamCodec(UUIDUtil.STREAM_CODEC, ShellState.STREAM_CODEC), SyncShellDataPacket::entries,
-        SyncShellDataPacket::new
-    );
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+public record SyncShellDataPacket(Multimap<UUID, ShellState> entries) {
+    public static void encode(final SyncShellDataPacket data, final FriendlyByteBuf buf) {
+        buf.writeVarInt(data.entries.size());
+        data.entries.entries().forEach(entry -> {
+            buf.writeUUID(entry.getKey());
+            entry.getValue().write(buf);
+        });
     }
 
-    public static void handle(final SyncShellDataPacket data, final IPayloadContext context) {
-        context.enqueueWork(() -> ClientShellData.INSTANCE.set(data.entries()))
-            .exceptionally(e -> null);
+    public static SyncShellDataPacket decode(final FriendlyByteBuf buf) {
+        final int size = buf.readVarInt();
+        final Multimap<UUID, ShellState> entries = ArrayListMultimap.create();
+        for (int i = 0; i < size; i++) {
+            final UUID playerUuid = buf.readUUID();
+            final ShellState state = ShellState.read(buf);
+            entries.put(playerUuid, state);
+        }
+        return new SyncShellDataPacket(entries);
+    }
+
+    public static void handle(final SyncShellDataPacket data, final Supplier<NetworkEvent.Context> contextSupplier) {
+        final NetworkEvent.Context context = contextSupplier.get();
+        context.enqueueWork(() -> ClientShellData.INSTANCE.set(data.entries));
+        context.setPacketHandled(true);
     }
 }
