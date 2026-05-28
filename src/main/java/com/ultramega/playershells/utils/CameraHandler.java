@@ -76,7 +76,6 @@ public final class CameraHandler {
             camera.detached = true;
             applyAnimation(camera, animClockMs);
         }
-        camera.setRotation(camera.getYRot(), camera.getXRot(), 0.0F);
     }
 
     public static void setMovingAnimation(@Nullable final BlockPos startPosition,
