@@ -44,6 +44,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+import static com.ultramega.playershells.Config.SHELL_FORGE_DNA_AMOUNT;
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.OPEN;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.isOpen;
@@ -216,7 +217,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         final UUID playerUUID = Objects.requireNonNull(this.inventoryHandler.getStackInSlot(0).get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
-        this.inventoryHandler.extractItem(0, 64, false);
+        this.inventoryHandler.extractItem(0, SHELL_FORGE_DNA_AMOUNT.get(), false);
         this.setPlayerUuid(playerUUID);
         this.shellState = ShellStates.CREATING;
         if (this.level instanceof ServerLevel serverLevel) {
@@ -253,7 +254,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             return false;
         }
 
-        final boolean canExtractStack = this.inventoryHandler.extractItem(0, 64, true).getCount() >= 64;
+        final boolean canExtractStack = this.inventoryHandler.extractItem(0, SHELL_FORGE_DNA_AMOUNT.get(), true).getCount() >= SHELL_FORGE_DNA_AMOUNT.get();
         if (!canExtractStack) {
             return false;
         }

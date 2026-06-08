@@ -21,6 +21,9 @@ public final class Config {
     public static final ModConfigSpec.IntValue SHELL_FORGE_DECAY_COOLDOWN = BUILDER
         .comment("Time required to progress by 1% during Shell decay (in ticks)")
         .defineInRange("shellForgeDecayCooldown", 10, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.IntValue SHELL_FORGE_DNA_AMOUNT = BUILDER
+        .comment("DNA amount required to create a Shell")
+        .defineInRange("shellForgeDnaAmount", 64, 1, 64);
 
     public static final ModConfigSpec.IntValue CENTRIFUGE_ENERGY_CAPACITY = BUILDER
         .comment("Maximum energy storage capacity of the Centrifuge")
