@@ -28,7 +28,7 @@ public class SoundHandler {
             return;
         }
 
-        if (!event.getOriginalSound().getLocation().getNamespace().startsWith(MODID)) {
+        if (!event.getOriginalSound().getIdentifier().getNamespace().equals(MODID)) {
             return;
         }
 
@@ -44,6 +44,12 @@ public class SoundHandler {
                                        final BlockPos pos) {
         final SoundInstance sound = new SimpleSoundInstance(soundEvent, source, volume, pitch, random, pos.getX(), pos.getY(), pos.getZ());
         Minecraft.getInstance().getSoundManager().play(sound);
+    }
+
+    public static void stopAllBlockSounds() {
+        final var sounds = Minecraft.getInstance().getSoundManager();
+        SOUND_MAP.values().forEach(sounds::stop);
+        SOUND_MAP.clear();
     }
 
     public static void stopAllBlockSounds(final BlockPos pos) {

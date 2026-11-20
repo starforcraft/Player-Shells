@@ -14,9 +14,6 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
 
 public class ShellForgeContainerMenu extends AbstractContainerMenu {
     private final ShellForgeBlockEntity blockEntity;
@@ -36,15 +33,14 @@ public class ShellForgeContainerMenu extends AbstractContainerMenu {
 
         this.addSlot(new ShellSlotItemHandler(this.blockEntity.inventoryHandler, 0, 80, 17, this.blockEntity));
 
-        final IItemHandler itemHandler = new InvWrapper(playerInventory);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {
-                this.addSlot(new SlotItemHandler(itemHandler, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
+                this.addSlot(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
             }
         }
 
         for (int i = 0; i < 9; i++) {
-            this.addSlot(new SlotItemHandler(itemHandler, i, 8 + i * 18, 142));
+            this.addSlot(new Slot(playerInventory, i, 8 + i * 18, 142));
         }
     }
 
@@ -58,7 +54,7 @@ public class ShellForgeContainerMenu extends AbstractContainerMenu {
             quickMovedStack = rawStack.copy();
 
             if (index == 0) {
-                if (!this.moveItemStackTo(rawStack, 1, 36, true)) {
+                if (!this.moveItemStackTo(rawStack, 1, 37, true)) {
                     return ItemStack.EMPTY;
                 }
 

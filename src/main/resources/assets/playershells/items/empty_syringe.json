@@ -1,0 +1,48 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "minecraft:using_item",
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "playershells:item/empty_syringe"
+    },
+    "on_true": {
+      "type": "minecraft:range_dispatch",
+      "property": "minecraft:use_duration",
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "playershells:item/empty_syringe"
+      },
+      "entries": [
+        {
+          "threshold": 10,
+          "model": {
+            "type": "minecraft:model",
+            "model": "playershells:item/blood_syringe_0"
+          }
+        },
+        {
+          "threshold": 30,
+          "model": {
+            "type": "minecraft:model",
+            "model": "playershells:item/blood_syringe_1"
+          }
+        },
+        {
+          "threshold": 50,
+          "model": {
+            "type": "minecraft:model",
+            "model": "playershells:item/blood_syringe_2"
+          }
+        },
+        {
+          "threshold": 70,
+          "model": {
+            "type": "minecraft:model",
+            "model": "playershells:item/blood_syringe_3"
+          }
+        }
+      ]
+    }
+  }
+}

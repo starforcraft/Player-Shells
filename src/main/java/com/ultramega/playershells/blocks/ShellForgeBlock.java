@@ -1,28 +1,22 @@
 package com.ultramega.playershells.blocks;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
-import com.ultramega.playershells.gui.ShellSelectionOverlay;
-import com.ultramega.playershells.packet.c2s.LeaveShellForgePacket;
-import com.ultramega.playershells.packet.c2s.TransferPlayerPacket;
-import com.ultramega.playershells.packet.c2s.ValidateShellForgePacket;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.events.ShellForgeClient;
 import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModBlocks;
 import com.ultramega.playershells.storage.ShellSavedData;
-import com.ultramega.playershells.utils.CameraHandler;
-import com.ultramega.playershells.utils.PositionReference;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.InsideBlockEffectApplier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -36,13 +30,11 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 import static com.ultramega.playershells.utils.MathUtils.createTickerHelper;
 import static com.ultramega.playershells.utils.MathUtils.getMinVelocity;
@@ -100,16 +92,15 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
         SHAPES[HALF_TOP][STATE_OPEN][dirToIndex(Direction.WEST)] = openToWestTop;
     }
 
-    private boolean blockShellSelection;
 
     public ShellForgeBlock(final Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any()
+        this.registerDefaultState(this.defaultBlockState()
             .setValue(OPEN, false));
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack,
+    protected InteractionResult useItemOn(final ItemStack stack,
                                               final BlockState state,
                                               final Level level,
                                               final BlockPos pos,
@@ -117,7 +108,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
                                               final InteractionHand hand,
                                               final BlockHitResult hitResult) {
         final boolean handled = this.handleUseCommon(level, state, pos, player);
-        return handled ? ItemInteractionResult.sidedSuccess(level.isClientSide()) : ItemInteractionResult.FAIL;
+        return handled ? InteractionResult.SUCCESS : InteractionResult.FAIL;
     }
 
     @Override
@@ -127,7 +118,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
                                                final Player player,
                                                final BlockHitResult hitResult) {
         final boolean handled = this.handleUseCommon(level, state, pos, player);
-        return handled ? InteractionResult.sidedSuccess(level.isClientSide()) : InteractionResult.FAIL;
+        return handled ? InteractionResult.SUCCESS : InteractionResult.FAIL;
     }
 
     private boolean handleUseCommon(final Level level,
@@ -154,14 +145,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
             shellForge.setChanged();
             return true;
         } else if (!hasShellInside && !player.isShiftKeyDown()) {
-            // and open selection overlay
-            this.openShellSelection(player, level, shellForgePos, shellForgeState);
-
-            // Prevent the lingering "use" key from constantly re-triggering after opening the overlay
-            final Minecraft mc = Minecraft.getInstance();
-            if (mc.options.keyUse.isDown()) {
-                mc.options.keyUse.setDown(false);
-            }
+            ShellForgeClient.onUse(player, level, shellForgePos, shellForgeState);
         }
 
         return true;
@@ -186,47 +170,15 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected void entityInside(final BlockState state, final Level level, final BlockPos pos, final Entity entity) {
+    protected void entityInside(final BlockState state, final Level level, final BlockPos pos, final Entity entity,
+                                final InsideBlockEffectApplier effects, final boolean precise) {
         if (!(entity instanceof Player player) || !isBottomHalf(state) || !(level.getBlockEntity(pos) instanceof ShellForgeBlockEntity shellForge)) {
             return;
         }
 
         if (level.isClientSide()) {
-            if (shellForge.getPlayerState() == PlayerStates.NONE) {
-                this.blockShellSelection = false;
-            }
-            if (!ShellSelectionOverlay.INSTANCE.isOpened() && shellForge.getPlayerState() == PlayerStates.INSIDE && !this.blockShellSelection) {
-                this.openShellSelection(player, level, pos, state);
-            } else if (ShellSelectionOverlay.INSTANCE.isOpened()
-                && (shellForge.getPlayerState() == PlayerStates.TRANSFERRED || shellForge.getPlayerState() == PlayerStates.GOING_OUT)) {
-                ShellSelectionOverlay.INSTANCE.close(true);
-            }
+            ShellForgeClient.entityInside(player, level, pos, state, shellForge);
         }
-    }
-
-    private void openShellSelection(final Player player, final Level level, final BlockPos pos, final BlockState state) {
-        final BlockPos thisShellForgePos = (state.getValue(HALF) == DoubleBlockHalf.UPPER ? pos.below() : pos).immutable();
-        final Direction thisFacing = level.getBlockState(thisShellForgePos).getValue(FACING);
-        final PositionReference thisShellForgePosReference = new PositionReference(thisShellForgePos, thisFacing, level.dimension().location());
-
-        ShellSelectionOverlay.INSTANCE.open(player, (shellEntry) -> {
-            // TODO: slowly build up green water from below and add mask before playing the animation
-            if (shellEntry.shellForgePos().isEmpty()) {
-                return;
-            }
-
-            PacketDistributor.sendToServer(new ValidateShellForgePacket());
-
-            // Play camera animation
-            final BlockPos newShellForgePos = shellEntry.shellForgePos().get().pos().immutable();
-            final Direction newShellForgeFacing = shellEntry.shellForgePos().get().facing();
-            CameraHandler.setMovingAnimation(thisShellForgePos.above(), thisFacing, newShellForgePos.above(), newShellForgeFacing, () -> {
-                PacketDistributor.sendToServer(new TransferPlayerPacket(thisShellForgePosReference, shellEntry.shellForgePos().get()));
-            });
-        }, () -> {
-            this.blockShellSelection = true;
-            PacketDistributor.sendToServer(new LeaveShellForgePacket(thisShellForgePos));
-        });
     }
 
     public static void movePlayerInside(final Player player, final BlockPos target, final Direction facing) {
@@ -262,13 +214,9 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean movedByPiston) {
-        // TODO: don't drop shell forge when breaking the upper block in creative
-        super.onRemove(state, level, pos, newState, movedByPiston);
-
-        if (level instanceof ServerLevel serverLevel) {
-            ShellSavedData.getShellData(serverLevel).validateShellData(serverLevel);
-        }
+    protected void affectNeighborsAfterRemoval(final BlockState state, final ServerLevel level, final BlockPos pos, final boolean movedByPiston) {
+        super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
+        ShellSavedData.getShellData(level).validateShellData(level);
     }
 
     @Override
@@ -294,7 +242,7 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
         }
         return !level.isClientSide()
             ? createTickerHelper(blockEntityType, ModBlockEntityTypes.SHELL_FORGE.get(), ShellForgeBlockEntity::serverTick)
-            : createTickerHelper(blockEntityType, ModBlockEntityTypes.SHELL_FORGE.get(), ShellForgeBlockEntity::clientTick);
+            : createTickerHelper(blockEntityType, ModBlockEntityTypes.SHELL_FORGE.get(), ShellForgeClient::clientTick);
     }
 
     public static void setValue(final BlockState state,

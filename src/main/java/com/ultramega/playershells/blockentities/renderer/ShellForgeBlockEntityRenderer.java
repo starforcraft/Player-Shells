@@ -1,49 +1,42 @@
 package com.ultramega.playershells.blockentities.renderer;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
-import com.ultramega.playershells.entities.ShellEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.entities.renderer.ShellRenderer;
 import com.ultramega.playershells.events.ClientEvents;
-import com.ultramega.playershells.registry.ModRenderTypes;
 import com.ultramega.playershells.storage.ClientShellData;
-import com.ultramega.playershells.storage.ShellState;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.List;
+import javax.annotation.Nullable;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.client.model.data.ModelData;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.isBottomHalf;
-import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
 import static com.ultramega.playershells.utils.MathUtils.interpolateGradient;
-import static com.ultramega.playershells.utils.MathUtils.packRGB8;
 import static com.ultramega.playershells.utils.MathUtils.yawForDirection;
 
-public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellForgeBlockEntity> {
-    private static final Map<UUID, ShellEntity> SHELL_CACHE = new HashMap<>();
-
+public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellForgeBlockEntity, ShellForgeBlockEntityRenderer.State> {
     private static final int FLAME_STRAY_COUNT = 50;
     private static final float FLAME_STRAY_WIDTH = 0.03f;
     private static final float FLAME_RADIUS = 0.25f;
@@ -52,73 +45,80 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
     private static final int[] ORANGE = {255, 140, 0};
     private static final int[] DARK_ORANGE = {153, 84, 1};
 
-    private final BlockRenderDispatcher blockRenderer;
-
-    public ShellForgeBlockEntityRenderer(final BlockEntityRendererProvider.Context ctx) {
-        this.blockRenderer = ctx.getBlockRenderDispatcher();
+    public ShellForgeBlockEntityRenderer(final BlockEntityRendererProvider.Context context) {
     }
 
     @Override
-    public void render(final ShellForgeBlockEntity blockEntity,
-                       final float partialTick,
-                       final PoseStack poseStack,
-                       final MultiBufferSource buffers,
-                       final int packedLight,
-                       final int packedOverlay) {
-        if (!isBottomHalf(blockEntity.getBlockState())) {
-            return;
-        }
-
-        this.renderGlassPanels(blockEntity, partialTick, poseStack, buffers, packedLight, packedOverlay);
-
-        final Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) {
-            return;
-        }
-
-        final UUID playerUuid = blockEntity.getPlayerUuid();
-        final UUID shellUuid = blockEntity.getShellUuid();
-        if (playerUuid.equals(EMPTY_UUID) || shellUuid.equals(EMPTY_UUID)) {
-            return;
-        }
-
-        if (blockEntity.getShellState() == ShellStates.EXTERMINATING && blockEntity.getLevel() != null) {
-            this.renderSmallFlame(poseStack, buffers, blockEntity.getLevel().random, packedLight);
-            // TODO: also add black spots onto the shell
-        }
-
-        final ShellEntity shellPlayer = getPlayerShellFromCache(mc.level, playerUuid, shellUuid, SHELL_CACHE);
-        shellPlayer.setPos(blockEntity.getBlockPos().getCenter().subtract(0, 0.5 - 0.1, 0));
-
-        final float yaw = yawForDirection(blockEntity.getBlockState().getValue(FACING));
-        shellPlayer.yBodyRotO = yaw;
-        shellPlayer.yBodyRot = yaw;
-        shellPlayer.setYRot(yaw);
-        shellPlayer.yHeadRotO = yaw;
-        shellPlayer.yHeadRot = yaw;
-        shellPlayer.setXRot(0f);
-
-        final EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
-        final ResourceLocation skinTexture = dispatcher.getRenderer(shellPlayer).getTextureLocation(shellPlayer);
-        final int color = blockEntity.getShellState() == ShellStates.CREATING ? packRGB8(54, 188, 184) : packRGB8(53, 53, 53);
-        final RenderType renderType = ModRenderTypes.CREATE_SHADER_TYPE.apply(skinTexture, shellPlayer, blockEntity.getShellPercentage(), 1, color);
-
-        final MultiBufferSource remappedBuffer = new ShaderForcingBuffer(buffers, renderType,
-            blockEntity.getShellState() == ShellStates.CREATING
-                || blockEntity.getShellState() == ShellStates.DECAYING
-                || blockEntity.getShellState() == ShellStates.EXTERMINATING);
-
-        poseStack.pushPose();
-        poseStack.translate(0.5, 0.06250, 0.5);
-        dispatcher.setRenderShadow(false);
-        dispatcher.render(shellPlayer, 0, 0, 0, yaw, partialTick, poseStack, remappedBuffer, packedLight);
-        dispatcher.setRenderShadow(true);
-        poseStack.popPose();
+    public State createRenderState() {
+        return new State();
     }
 
-    private void renderSmallFlame(final PoseStack poseStack, final MultiBufferSource buffers, final RandomSource random, final int packedLight) {
-        final VertexConsumer vertexConsumer = buffers.getBuffer(RenderType.debugQuads());
+    @Override
+    public void extractRenderState(final ShellForgeBlockEntity forge, final State state, final float partialTick,
+        final Vec3 cameraPosition, final ModelFeatureRenderer.CrumblingOverlay breakProgress) {
+        BlockEntityRenderer.super.extractRenderState(forge, state, partialTick, cameraPosition, breakProgress);
+        state.bottom = isBottomHalf(forge.getBlockState());
+        state.facing = forge.getBlockState().getValue(FACING);
+        state.doorAngle = Mth.lerp(partialTick, forge.getAnimPrevProgress(), forge.getAnimProgress()) * 60.0f;
+        state.shell = null;
+        final ShellStates shellState = forge.getShellState();
+        state.exterminating = shellState == ShellStates.EXTERMINATING;
+        if (state.bottom && forge.getLevel() instanceof ClientLevel level) {
+            final var entity = ClientShellData.INSTANCE.getPreview(level, forge.getPlayerUuid(), forge.getShellUuid());
+            if (entity != null) {
+                entity.setPos(forge.getBlockPos().getCenter().add(0, -0.4375, 0));
+                final boolean creating = shellState == ShellStates.CREATING;
+                final boolean scanActive = creating || state.exterminating || shellState == ShellStates.DECAYING;
+                final int edgeColor = creating ? 0x36bcb8 : 0x353535;
+                state.shell = ShellRenderer.extract(entity, yawForDirection(state.facing), forge.getShellPercentage(), edgeColor,
+                    state.lightCoords, scanActive);
+            }
+            state.flameSeed = level.getRandom().nextLong();
+        }
+    }
 
+    @Override
+    public void submit(final State state, final PoseStack poseStack, final SubmitNodeCollector nodes, final CameraRenderState camera) {
+        if (!state.bottom) {
+            return;
+        }
+
+        final Minecraft client = Minecraft.getInstance();
+        final var models = client.getModelManager();
+        final float yaw = switch (state.facing) {
+            case SOUTH -> 180f;
+            case WEST -> 90f;
+            case EAST -> -90f;
+            default -> 0f;
+        };
+        poseStack.pushPose();
+        poseStack.rotateAround(Axis.YP.rotationDegrees(yaw), 0.5f, 0, 0.5f);
+        this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_RIGHT), 14.8f / 16f, -state.doorAngle);
+        this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_LEFT), 1.1f / 16f, state.doorAngle);
+        poseStack.popPose();
+
+        if (state.exterminating) {
+            final long seed = state.flameSeed;
+            nodes.submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
+                (pose, buffer) -> this.renderSmallFlame(pose, buffer, RandomSource.create(seed)));
+        }
+        if (state.shell != null) {
+            client.getEntityRenderDispatcher().submit(state.shell, camera, 0.5, 0.0625, 0.5, poseStack, nodes);
+        }
+    }
+
+    private void submitDoor(final PoseStack pose, final SubmitNodeCollector nodes, final int light,
+        final BlockStateModelPart part, final float pivot, final float angle) {
+        pose.pushPose();
+        pose.rotateAround(Axis.YP.rotationDegrees(angle), pivot, 0, 1.6f / 16f);
+        nodes.submitBlockModel(pose, Sheets.cutoutBlockSheet(), List.of(part), new int[0], light, OverlayTexture.NO_OVERLAY, 0);
+        pose.popPose();
+    }
+
+    private void renderSmallFlame(final PoseStack.Pose pose, final VertexConsumer vertexConsumer, final RandomSource random) {
+
+        final PoseStack poseStack = new PoseStack();
+        poseStack.mulPose(pose.pose());
         for (int i = 0; i < FLAME_STRAY_COUNT; i++) {
             final float height = 1.6f + (random.nextFloat() - 0.5f) * 0.7f;
             final float startY = -height + 2.0F;
@@ -161,128 +161,32 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
 
                 // Build vertices
                 vertexConsumer.addVertex(matrix, baseX - w1 / 2, y1, baseZ)
-                    .setColor(color1[0], color1[1], color1[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
+                    .setColor(color1[0], color1[1], color1[2], 200);
                 vertexConsumer.addVertex(matrix, baseX - w2 / 2, y2, baseZ)
-                    .setColor(color2[0], color2[1], color2[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
+                    .setColor(color2[0], color2[1], color2[2], 200);
                 vertexConsumer.addVertex(matrix, baseX + w2 / 2, y2, baseZ)
-                    .setColor(color2[0], color2[1], color2[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
+                    .setColor(color2[0], color2[1], color2[2], 200);
                 vertexConsumer.addVertex(matrix, baseX + w1 / 2, y1, baseZ)
-                    .setColor(color1[0], color1[1], color1[2], 200)
-                    .setOverlay(OverlayTexture.NO_OVERLAY)
-                    .setLight(packedLight);
+                    .setColor(color1[0], color1[1], color1[2], 200);
             }
 
             poseStack.popPose();
         }
     }
 
-    private void renderGlassPanels(final ShellForgeBlockEntity blockEntity,
-                                   final float partialTick,
-                                   final PoseStack poseStack,
-                                   final MultiBufferSource buffers,
-                                   final int packedLight,
-                                   final int packedOverlay) {
-        poseStack.pushPose();
-
-        final float leftAngleDeg = this.getAngle(partialTick, blockEntity);
-        final float rightAngleDeg = -leftAngleDeg;
-
-        final float yaw = switch (blockEntity.getBlockState().getValue(FACING)) {
-            case SOUTH -> 180f;
-            case WEST -> 90f;
-            case EAST -> -90f;
-            default -> 0f; //NORTH
-        };
-        poseStack.translate(0.5, 0, 0.5);
-        poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
-        poseStack.translate(-0.5, 0, -0.5);
-
-        final VertexConsumer consumer = buffers.getBuffer(Sheets.cutoutBlockSheet());
-
-        // --- RIGHT PANEL ---
-        poseStack.pushPose();
-        float px = 14.8f / 16f;
-        float py = 0.0f;
-        float pz = 1.6f / 16f;
-        poseStack.translate(px, py, pz);
-        poseStack.mulPose(Axis.YP.rotationDegrees(rightAngleDeg));
-        poseStack.translate(-px, -py, -pz);
-        this.blockRenderer.getModelRenderer().renderModel(
-            poseStack.last(), consumer, null, ClientEvents.shellForgeGlassRight, 1f, 1f, 1f,
-            packedLight, packedOverlay, ModelData.EMPTY, null
-        );
-        poseStack.popPose();
-
-        // --- LEFT PANEL ---
-        poseStack.pushPose();
-        px = 1.1f / 16f;
-        py = 0.0f;
-        pz = 1.6f / 16f;
-
-        poseStack.translate(px, py, pz);
-        poseStack.mulPose(Axis.YP.rotationDegrees(leftAngleDeg));
-        poseStack.translate(-px, -py, -pz);
-
-        this.blockRenderer.getModelRenderer().renderModel(
-            poseStack.last(), consumer, null, ClientEvents.shellForgeGlassLeft, 1f, 1f, 1f,
-            packedLight, packedOverlay, ModelData.EMPTY, null
-        );
-        poseStack.popPose();
-
-        poseStack.popPose();
-    }
-
-    public float getAngle(final float partialTick, final ShellForgeBlockEntity blockEntity) {
-        final float t = Mth.lerp(partialTick, blockEntity.getAnimPrevProgress(), blockEntity.getAnimProgress());
-        return t * 60.0f;
-    }
 
     @Override
-    public AABB getRenderBoundingBox(final ShellForgeBlockEntity blockEntity) {
-        return new AABB(blockEntity.getBlockPos()).expandTowards(0, isBottomHalf(blockEntity.getBlockState()) ? 1 : -1, 0);
+    public AABB getRenderBoundingBox(final ShellForgeBlockEntity forge) {
+        return new AABB(forge.getBlockPos()).expandTowards(0, isBottomHalf(forge.getBlockState()) ? 1 : -1, 0);
     }
 
-    public static ShellEntity getPlayerShellFromCache(final ClientLevel level, final UUID playerUuid, final UUID shellUuid, final Map<UUID, ShellEntity> cache) {
-        return cache.computeIfAbsent(shellUuid, ignored -> {
-            final ShellEntity player = new ShellEntity(level, new GameProfile(playerUuid, ""));
-            final ShellState shellState = ClientShellData.INSTANCE.get(playerUuid, shellUuid);
-            if (shellState != null) {
-                player.load(shellState.playerData());
-            }
-
-            player.setPose(Pose.STANDING);
-            player.setXRot(0f);
-
-            return player;
-        });
-    }
-
-    public static class ShaderForcingBuffer implements MultiBufferSource {
-        private final MultiBufferSource delegate;
-        private final RenderType forced;
-        private final boolean replace;
-
-        public ShaderForcingBuffer(final MultiBufferSource delegate, final RenderType forced, final boolean replace) {
-            this.delegate = delegate;
-            this.forced = forced;
-            this.replace = replace;
-        }
-
-        @Override
-        public VertexConsumer getBuffer(final RenderType requested) {
-            if (this.replace
-                && requested.format().equals(this.forced.format())
-                && requested.mode() == this.forced.mode()) {
-                return this.delegate.getBuffer(this.forced);
-            }
-
-            return this.delegate.getBuffer(requested);
-        }
+    public static class State extends BlockEntityRenderState {
+        private boolean bottom;
+        private Direction facing;
+        private float doorAngle;
+        private boolean exterminating;
+        private long flameSeed;
+        @Nullable
+        private ShellRenderer.State shell;
     }
 }

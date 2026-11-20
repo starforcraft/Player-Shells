@@ -5,16 +5,14 @@ import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.utils.OwnerData;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.CameraType;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.level.Level;
 
 import static com.ultramega.playershells.utils.MathUtils.near;
@@ -28,39 +26,32 @@ public class SyringeItem extends ItemWithOwner {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(final Level level, final Player player, final InteractionHand usedHand) {
+    public InteractionResult use(final Level level, final Player player, final InteractionHand usedHand) {
         final boolean isOffhand = usedHand == InteractionHand.OFF_HAND;
         final boolean isOffhandEmpty = player.getItemInHand(InteractionHand.OFF_HAND).isEmpty();
         if (isOffhand || !isOffhandEmpty) {
             final MutableComponent component = Component.translatable(isOffhand
                 ? "gui.playershells.syringe.cannot_use_offhand"
                 : "gui.playershells.syringe.offhand_empty");
-            player.displayClientMessage(component.withStyle(ChatFormatting.RED), true);
-            return InteractionResultHolder.fail(player.getItemInHand(usedHand));
+            player.sendOverlayMessage(component.withStyle(ChatFormatting.RED));
+            return InteractionResult.FAIL;
         }
 
         final ItemStack stack = player.getItemInHand(usedHand);
         if (stack.is(ModItems.EMPTY_SYRINGE.get())) {
             player.startUsingItem(usedHand);
-            return InteractionResultHolder.success(player.getItemInHand(usedHand));
+            return InteractionResult.SUCCESS;
         }
-        return InteractionResultHolder.fail(player.getItemInHand(usedHand));
+        return InteractionResult.FAIL;
     }
 
     @Override
     public void onUseTick(final Level level, final LivingEntity entity, final ItemStack stack, final int remainingUseDuration) {
-        if (level.isClientSide()) {
-            final Minecraft mc = Minecraft.getInstance();
-            if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
-                mc.options.setCameraType(CameraType.FIRST_PERSON);
-            }
-        }
-
         if (!level.isClientSide()) {
             final float usePos = (float) (stack.getUseDuration(entity) - entity.getUseItemRemainingTicks()) / MAX_EXTRACT_DURATION;
             for (final float point : PULSE_POINTS) {
                 if (near(usePos, point)) {
-                    entity.hurt(entity.damageSources().magic(), 2.0F);
+                    entity.hurtOrSimulate(entity.damageSources().magic(), 2.0F);
                 }
             }
         }
@@ -81,7 +72,7 @@ public class SyringeItem extends ItemWithOwner {
     }
 
     @Override
-    public UseAnim getUseAnimation(final ItemStack stack) {
-        return UseAnim.NONE;
+    public ItemUseAnimation getUseAnimation(final ItemStack stack) {
+        return ItemUseAnimation.NONE;
     }
 }

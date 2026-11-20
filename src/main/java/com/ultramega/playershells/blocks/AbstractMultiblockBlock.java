@@ -4,12 +4,13 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
@@ -17,13 +18,12 @@ import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 
 public class AbstractMultiblockBlock extends Block {
     public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
-    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
 
     public AbstractMultiblockBlock(final Properties properties) {
         super(properties);
@@ -34,11 +34,13 @@ public class AbstractMultiblockBlock extends Block {
 
     @Override
     protected BlockState updateShape(final BlockState state,
-                                     final Direction direction,
-                                     final BlockState neighborState,
-                                     final LevelAccessor level,
+                                     final LevelReader level,
+                                     final ScheduledTickAccess ticks,
                                      final BlockPos pos,
-                                     final BlockPos neighborPos) {
+                                     final Direction direction,
+                                     final BlockPos neighborPos,
+                                     final BlockState neighborState,
+                                     final RandomSource random) {
         final DoubleBlockHalf half = state.getValue(HALF);
         if (direction.getAxis() == Direction.Axis.Y && (half == DoubleBlockHalf.LOWER) == (direction == Direction.UP)) {
             return neighborState.is(this) && neighborState.getValue(HALF) != half
@@ -47,7 +49,7 @@ public class AbstractMultiblockBlock extends Block {
         } else {
             return half == DoubleBlockHalf.LOWER && direction == Direction.DOWN && !state.canSurvive(level, pos)
                 ? Blocks.AIR.defaultBlockState()
-                : super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+                : super.updateShape(state, level, ticks, pos, direction, neighborPos, neighborState, random);
         }
     }
 
@@ -55,7 +57,7 @@ public class AbstractMultiblockBlock extends Block {
     public @Nullable BlockState getStateForPlacement(final BlockPlaceContext context) {
         final BlockPos blockPos = context.getClickedPos();
         final Level level = context.getLevel();
-        if (blockPos.getY() < level.getMaxBuildHeight() - 1 && level.getBlockState(blockPos.above()).canBeReplaced(context)) {
+        if (blockPos.getY() < level.getMaxY() && level.getBlockState(blockPos.above()).canBeReplaced(context)) {
             return this.defaultBlockState()
                 .setValue(FACING, context.getHorizontalDirection().getOpposite())
                 .setValue(HALF, DoubleBlockHalf.LOWER);

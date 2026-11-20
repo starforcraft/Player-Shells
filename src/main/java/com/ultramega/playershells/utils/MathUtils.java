@@ -3,11 +3,10 @@ package com.ultramega.playershells.utils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -20,9 +19,11 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -113,10 +114,7 @@ public final class MathUtils {
         if (positionReference == null) {
             return null;
         }
-        return StreamSupport.stream(server.getAllLevels().spliterator(), false)
-            .filter(level -> level.dimension().location().equals(positionReference.dimension()))
-            .findAny()
-            .orElse(null);
+        return server.getLevel(ResourceKey.create(Registries.DIMENSION, positionReference.dimension()));
     }
 
     public static boolean hasPlayerInside(final BlockPos pos, final Level level) {
@@ -147,7 +145,7 @@ public final class MathUtils {
         final double ndx = dx / length;
         final double ndz = dz / length;
 
-        final Vec3i dir = facing.getNormal();
+        final Vec3i dir = facing.getUnitVec3i();
         final double fx = dir.getX();
         final double fz = dir.getZ();
 

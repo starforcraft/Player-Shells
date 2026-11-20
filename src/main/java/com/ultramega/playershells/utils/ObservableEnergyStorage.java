@@ -1,38 +1,26 @@
 package com.ultramega.playershells.utils;
 
-import net.neoforged.neoforge.energy.EnergyStorage;
+import net.neoforged.neoforge.transfer.energy.SimpleEnergyHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 
-public class ObservableEnergyStorage extends EnergyStorage {
+public class ObservableEnergyStorage extends SimpleEnergyHandler {
     public ObservableEnergyStorage(final int capacity) {
         super(capacity);
     }
 
-    public ObservableEnergyStorage(final int capacity, final int maxTransfer) {
-        super(capacity, maxTransfer);
-    }
-
-    public ObservableEnergyStorage(final int capacity, final int maxReceive, final int maxExtract) {
-        super(capacity, maxReceive, maxExtract);
-    }
-
-    public ObservableEnergyStorage(final int capacity, final int maxReceive, final int maxExtract, final int energy) {
-        super(capacity, maxReceive, maxExtract, energy);
+    public int extractEnergy(final int amount, final boolean simulate) {
+        try (final Transaction transaction = Transaction.openRoot()) {
+            final int extracted = this.extract(amount, transaction);
+            if (!simulate) {
+                transaction.commit();
+            }
+            return extracted;
+        }
     }
 
     @Override
-    public int receiveEnergy(final int toReceive, final boolean simulate) {
-        if (!simulate) {
-            this.onEnergyChanged();
-        }
-        return super.receiveEnergy(toReceive, simulate);
-    }
-
-    @Override
-    public int extractEnergy(final int toExtract, final boolean simulate) {
-        if (!simulate) {
-            this.onEnergyChanged();
-        }
-        return super.extractEnergy(toExtract, simulate);
+    protected void onEnergyChanged(final int previousAmount) {
+        this.onEnergyChanged();
     }
 
     public void onEnergyChanged() {

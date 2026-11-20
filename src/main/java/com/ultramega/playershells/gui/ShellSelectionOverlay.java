@@ -3,69 +3,56 @@ package com.ultramega.playershells.gui;
 import com.ultramega.playershells.entities.ShellEntity;
 import com.ultramega.playershells.storage.ClientShellData;
 import com.ultramega.playershells.storage.ShellState;
-import com.ultramega.playershells.utils.ShellBundle;
 import com.ultramega.playershells.utils.ShellBundle.InventoryEntry;
 import com.ultramega.playershells.utils.ShellBundle.ShellEntry;
 import com.ultramega.playershells.utils.ShellBundle.StatEntry;
+import com.ultramega.playershells.utils.ShellBundle;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
-import com.google.common.collect.Maps;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.Holder;
-import net.minecraft.nbt.ListTag;
+import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
-import net.minecraft.world.effect.MobEffect;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.ai.attributes.AttributeMap;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
-import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodData;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.client.gui.GuiLayer;
+import org.joml.Matrix3x2fStack;
 import org.lwjgl.glfw.GLFW;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
-import static com.ultramega.playershells.blockentities.renderer.ShellForgeBlockEntityRenderer.getPlayerShellFromCache;
 import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
-import static net.minecraft.client.gui.Gui.ARMOR_EMPTY_SPRITE;
-import static net.minecraft.client.gui.Gui.ARMOR_FULL_SPRITE;
-import static net.minecraft.client.gui.Gui.ARMOR_HALF_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_EMPTY_HUNGER_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_EMPTY_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_FULL_HUNGER_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_FULL_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_HALF_HUNGER_SPRITE;
-import static net.minecraft.client.gui.Gui.FOOD_HALF_SPRITE;
-import static net.minecraft.world.inventory.InventoryMenu.SLOT_IDS;
-import static net.minecraft.world.inventory.InventoryMenu.TEXTURE_EMPTY_SLOTS;
 
-public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellEntry> implements LayeredDraw.Layer {
+public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellEntry> implements GuiLayer {
     public static final ShellSelectionOverlay INSTANCE = new ShellSelectionOverlay();
-    private static final Map<UUID, ShellEntity> SHELL_CACHE = new HashMap<>();
-    private static final ResourceLocation INVENTORY_LOCATION = ResourceLocation.fromNamespaceAndPath(MODID, "textures/gui/clean_inventory.png");
+    private static final Identifier ARMOR_EMPTY_SPRITE = Identifier.withDefaultNamespace("hud/armor_empty");
+    private static final Identifier ARMOR_FULL_SPRITE = Identifier.withDefaultNamespace("hud/armor_full");
+    private static final Identifier ARMOR_HALF_SPRITE = Identifier.withDefaultNamespace("hud/armor_half");
+    private static final Identifier FOOD_EMPTY_HUNGER_SPRITE = Identifier.withDefaultNamespace("hud/food_empty_hunger");
+    private static final Identifier FOOD_EMPTY_SPRITE = Identifier.withDefaultNamespace("hud/food_empty");
+    private static final Identifier FOOD_FULL_HUNGER_SPRITE = Identifier.withDefaultNamespace("hud/food_full_hunger");
+    private static final Identifier FOOD_FULL_SPRITE = Identifier.withDefaultNamespace("hud/food_full");
+    private static final Identifier FOOD_HALF_HUNGER_SPRITE = Identifier.withDefaultNamespace("hud/food_half_hunger");
+    private static final Identifier FOOD_HALF_SPRITE = Identifier.withDefaultNamespace("hud/food_half");
+    private static final EquipmentSlot[] ARMOR = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
+    private static final Identifier[] EMPTY_ARMOR = {InventoryMenu.EMPTY_ARMOR_SLOT_HELMET, InventoryMenu.EMPTY_ARMOR_SLOT_CHESTPLATE,
+        InventoryMenu.EMPTY_ARMOR_SLOT_LEGGINGS, InventoryMenu.EMPTY_ARMOR_SLOT_BOOTS};
+    private static final Identifier INVENTORY_LOCATION = Identifier.fromNamespaceAndPath(MODID, "textures/gui/clean_inventory.png");
 
     @Nullable
     private Consumer<ShellEntry> onSelectShell;
@@ -75,7 +62,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     private ShellBundle displayedShell;
 
     @Override
-    public void render(final GuiGraphics graphics, final DeltaTracker deltaTracker) {
+    public void render(final GuiGraphicsExtractor graphics, final DeltaTracker deltaTracker) {
         // TODO: Add eye view into the top right corner, below coordinates, dimension and gamemode
         //  also add curios compat to the left side of the inventory
         //  also implement pagination
@@ -91,7 +78,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             return;
         }
 
-        final PoseStack pose = graphics.pose();
+        final Matrix3x2fStack pose = graphics.pose();
         final float centerX = graphics.guiWidth() / 2f;
         final float centerY = graphics.guiHeight() / 2f;
 
@@ -105,8 +92,8 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         this.renderStats(graphics, pose, centerX, centerY, invWidth, invHeight, shellEntry);
     }
 
-    private void renderInventory(final GuiGraphics graphics,
-                                 final PoseStack pose,
+    private void renderInventory(final GuiGraphicsExtractor graphics,
+                                 final Matrix3x2fStack pose,
                                  final float centerX,
                                  final float centerY,
                                  final int invWidth,
@@ -116,19 +103,17 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             return;
         }
 
-        final var textureAtlas = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
 
-        pose.pushPose();
-        pose.translate(centerX - (OUTER + 15f) - invWidth / 2f, centerY - invHeight / 2f / 2f, 0f);
-        pose.scale(0.5f, 0.5f, 0.5f);
+        pose.pushMatrix();
+        pose.translate(centerX - (OUTER + 15f) - invWidth / 2f, centerY - invHeight / 2f / 2f);
+        pose.scale(0.5f, 0.5f);
 
-        graphics.blit(INVENTORY_LOCATION, 0, 0, 0, 0, invWidth, invHeight, 256, 256);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, INVENTORY_LOCATION, 0, 0, 0, 0, invWidth, invHeight, 256, 256);
 
         for (int i = 0; i < 4; ++i) {
             final ItemStack armorStack = shellEntry.inventory().get().armor().get(4 - (i + 1));
             if (armorStack.isEmpty()) {
-                final TextureAtlasSprite sprite = textureAtlas.apply(TEXTURE_EMPTY_SLOTS.get(SLOT_IDS[i]));
-                graphics.blit(8, 8 + i * 18, 0, 16, 16, sprite);
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, EMPTY_ARMOR[i], 8, 8 + i * 18, 16, 16);
             } else {
                 this.renderSlotContent(graphics, armorStack, 8, 8 + i * 18, invWidth);
             }
@@ -148,17 +133,16 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
 
         final ItemStack offHandStack = shellEntry.inventory().get().offhand().getFirst();
         if (offHandStack.isEmpty()) {
-            final TextureAtlasSprite sprite = textureAtlas.apply(InventoryMenu.EMPTY_ARMOR_SLOT_SHIELD);
-            graphics.blit(77, 62, 0, 16, 16, sprite);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, InventoryMenu.EMPTY_ARMOR_SLOT_SHIELD, 77, 62, 16, 16);
         } else {
             this.renderSlotContent(graphics, offHandStack, 77, 62, invWidth);
         }
 
-        pose.popPose();
+        pose.popMatrix();
     }
 
-    private void renderStats(final GuiGraphics graphics,
-                             final PoseStack pose,
+    private void renderStats(final GuiGraphicsExtractor graphics,
+                             final Matrix3x2fStack pose,
                              final float centerX,
                              final float centerY,
                              final int invWidth,
@@ -175,12 +159,12 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         final int currentHealth = Mth.ceil(shellEntry.stats().get().health());
         //final float maxHealth = Math.max((float) statEntry.health().getAttributeValue(Attributes.MAX_HEALTH), currentHealth)); //TODO
 
-        pose.pushPose();
-        pose.translate(centerX - (OUTER + 15f) - invWidth / 2f + offsetX, centerY - invHeight / 2f / 2f + invHeight / 2f + 10f, 0f);
+        pose.pushMatrix();
+        pose.translate(centerX - (OUTER + 15f) - invWidth / 2f + offsetX, centerY - invHeight / 2f / 2f + invHeight / 2f + 10f);
         this.renderArmor(graphics, shellEntry.stats().get(), 0, 0);
         this.renderHearts(graphics, 0, 10, 5, 20f, currentHealth, 0);
         this.renderFood(graphics, shellEntry.stats().get(), 0, 20);
-        pose.popPose();
+        pose.popMatrix();
     }
 
     @Override
@@ -212,7 +196,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             return null;
         }
 
-        return getPlayerShellFromCache(mc.level, playerUuid, shellUuid, SHELL_CACHE);
+        return ClientShellData.INSTANCE.getPreview(mc.level, playerUuid, shellUuid);
     }
 
     @Override
@@ -250,7 +234,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         }
 
         final int selectionIndex = this.getElementUnderMouse();
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && selectionIndex >= 0 && selectionIndex < this.getEntries().size()) {
             Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 
             if (this.onSelectShell != null) {
@@ -265,67 +249,64 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         }
     }
 
-    private void renderSlotContent(final GuiGraphics graphics, final ItemStack stack, final int x, final int y, final int imageWidth) {
+    private void renderSlotContent(final GuiGraphicsExtractor graphics, final ItemStack stack, final int x, final int y, final int imageWidth) {
         final int seed = x + y * imageWidth;
-        graphics.renderItem(stack, x, y, seed);
-        graphics.renderItemDecorations(Minecraft.getInstance().font, stack, x, y);
+        graphics.item(stack, x, y, seed);
+        graphics.itemDecorations(Minecraft.getInstance().font, stack, x, y);
     }
 
     /**
-     * Copied and modified from {@link net.minecraft.client.gui.Gui#renderFood(net.minecraft.client.gui.GuiGraphics, net.minecraft.world.entity.player.Player, int, int)}
+     * Copied and modified from {@link net.minecraft.client.gui.Gui#renderFood(net.minecraft.client.gui.GuiGraphicsExtractor, net.minecraft.world.entity.player.Player, int, int)}
      */
-    private void renderFood(final GuiGraphics graphics, final StatEntry stats, final int x, final int y) {
+    private void renderFood(final GuiGraphicsExtractor graphics, final StatEntry stats, final int x, final int y) {
         final int foodLevel = stats.foodLevel();
 
         final boolean hasHunger = stats.activeEffects().containsKey(MobEffects.HUNGER);
-        final ResourceLocation emptySprite = hasHunger ? FOOD_EMPTY_HUNGER_SPRITE : FOOD_EMPTY_SPRITE;
-        final ResourceLocation halfSprite = hasHunger ? FOOD_HALF_HUNGER_SPRITE : FOOD_HALF_SPRITE;
-        final ResourceLocation fullSprite = hasHunger ? FOOD_FULL_HUNGER_SPRITE : FOOD_FULL_SPRITE;
+        final Identifier emptySprite = hasHunger ? FOOD_EMPTY_HUNGER_SPRITE : FOOD_EMPTY_SPRITE;
+        final Identifier halfSprite = hasHunger ? FOOD_HALF_HUNGER_SPRITE : FOOD_HALF_SPRITE;
+        final Identifier fullSprite = hasHunger ? FOOD_FULL_HUNGER_SPRITE : FOOD_FULL_SPRITE;
 
-        RenderSystem.enableBlend();
 
         for (int i = 0; i < 10; i++) {
             final int foodIndex = i * 2 + 1;
             final int posX = x + i * 8;
 
-            graphics.blitSprite(emptySprite, posX, y, 9, 9);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, emptySprite, posX, y, 9, 9);
 
             if (foodIndex < foodLevel) {
-                graphics.blitSprite(fullSprite, posX, y, 9, 9);
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, fullSprite, posX, y, 9, 9);
             } else if (foodIndex == foodLevel) {
-                graphics.blitSprite(halfSprite, posX, y, 9, 9);
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, halfSprite, posX, y, 9, 9);
             }
         }
 
-        RenderSystem.disableBlend();
     }
 
     /**
      * Copied and modified from {@link Gui#renderArmor(GuiGraphics, Player, int, int, int, int)}
      */
-    private void renderArmor(final GuiGraphics guiGraphics, final StatEntry stats, final int x, final int y) {
+    private void renderArmor(final GuiGraphicsExtractor guiGraphics, final StatEntry stats, final int x, final int y) {
         final int armorValue = stats.armorValue();
         if (armorValue > 0) {
-            RenderSystem.enableBlend();
+
 
             for (int i = 0; i < 10; ++i) {
                 final int armorIndex = i * 2 + 1;
                 final int posX = x + i * 8;
 
                 if (armorIndex < armorValue) {
-                    guiGraphics.blitSprite(ARMOR_FULL_SPRITE, posX, y, 9, 9);
+                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_FULL_SPRITE, posX, y, 9, 9);
                 }
 
                 if (armorIndex == armorValue) {
-                    guiGraphics.blitSprite(ARMOR_HALF_SPRITE, posX, y, 9, 9);
+                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_HALF_SPRITE, posX, y, 9, 9);
                 }
 
                 if (armorIndex > armorValue) {
-                    guiGraphics.blitSprite(ARMOR_EMPTY_SPRITE, posX, y, 9, 9);
+                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_EMPTY_SPRITE, posX, y, 9, 9);
                 }
             }
 
-            RenderSystem.disableBlend();
         }
     }
 
@@ -333,7 +314,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
      * Copied and modified from {@link Gui#renderHearts(GuiGraphics, Player, int, int, int, int, float, int, int, int, boolean)}
      */
     private void renderHearts(
-        final GuiGraphics guiGraphics,
+        final GuiGraphicsExtractor guiGraphics,
         final int x,
         final int y,
         final int height,
@@ -375,42 +356,38 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         }
     }
 
-    private void renderHeart(final GuiGraphics guiGraphics,
+    private void renderHeart(final GuiGraphicsExtractor guiGraphics,
                              final Gui.HeartType heartType,
                              final int x,
                              final int y,
                              final boolean hardcore,
                              final boolean halfHeart,
                              final boolean blinking) {
-        RenderSystem.enableBlend();
-        guiGraphics.blitSprite(heartType.getSprite(hardcore, blinking, halfHeart), x, y, 9, 9);
-        RenderSystem.disableBlend();
+
+        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, heartType.getSprite(hardcore, blinking, halfHeart), x, y, 9, 9);
+
     }
 
     public void open(final Player player, final Consumer<ShellEntry> onSelectShell, final Runnable onClose) {
         final List<ShellEntry> shellEntries = new ArrayList<>();
         //TODO: rebuild entries if shell creation progress == 0 (can happen if someone exterminates the shell)
+        final var level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
         for (final ShellState shellState : ClientShellData.INSTANCE.getAll(player.getUUID())) {
-            final Inventory inventory = new Inventory(player);
-            inventory.load(shellState.playerData().getList("Inventory", ListTag.TAG_COMPOUND));
-            final InventoryEntry inventoryEntry = new InventoryEntry(inventory.items, inventory.armor, inventory.offhand);
-
-            final FoodData foodData = new FoodData();
-            foodData.readAdditionalSaveData(shellState.playerData());
-            final AttributeMap attributes = new AttributeMap(DefaultAttributes.getSupplier(EntityType.PLAYER));
-            attributes.load(shellState.playerData().getList("attributes", ListTag.TAG_COMPOUND));
-            final Map<Holder<MobEffect>, MobEffectInstance> activeEffects = Maps.newHashMap();
-            final ListTag effectsTag = shellState.playerData().getList("active_effects", ListTag.TAG_COMPOUND);
-            for (int i = 0; i < effectsTag.size(); ++i) {
-                final MobEffectInstance effectInstance = MobEffectInstance.load(effectsTag.getCompound(i));
-                if (effectInstance != null) {
-                    activeEffects.put(effectInstance.getEffect(), effectInstance);
-                }
+            final ShellEntity preview = ClientShellData.INSTANCE.getPreview(level, player.getUUID(), shellState.shellUUID());
+            if (preview == null) {
+                continue;
             }
-            final StatEntry statEntry = new StatEntry(shellState.playerData().getFloat("Health"),
-                Mth.floor(attributes.getValue(Attributes.ARMOR)),
-                foodData.getFoodLevel(),
-                activeEffects);
+            final NonNullList<ItemStack> armor = NonNullList.withSize(4, ItemStack.EMPTY);
+            for (int slot = 0; slot < ARMOR.length; slot++) {
+                armor.set(slot, preview.getItemBySlot(ARMOR[slot]));
+            }
+            final InventoryEntry inventoryEntry = new InventoryEntry(preview.getInventory().getNonEquipmentItems(), armor,
+                NonNullList.of(ItemStack.EMPTY, preview.getOffhandItem()));
+            final StatEntry statEntry = new StatEntry(preview.getHealth(), preview.getArmorValue(),
+                preview.getFoodData().getFoodLevel(), preview.getActiveEffectsMap());
 
             shellEntries.add(new ShellEntry(player.getName().getString(), Optional.of(shellState.shellForgePos()),
                 Optional.of(inventoryEntry), Optional.of(statEntry), Optional.of(shellState.shellUUID())));
@@ -442,6 +419,8 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             Minecraft.getInstance().mouseHandler.grabMouse();
         }
         this.displayedShell = null;
+        this.onSelectShell = null;
+        this.onClose = null;
         this.clearState();
     }
 }

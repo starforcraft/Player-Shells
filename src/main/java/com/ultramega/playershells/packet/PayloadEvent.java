@@ -45,18 +45,15 @@ public final class PayloadEvent {
 
         registrar.playToClient(
             SyncShellDataPacket.TYPE,
-            SyncShellDataPacket.STREAM_CODEC,
-            SyncShellDataPacket::handle
+            SyncShellDataPacket.STREAM_CODEC
         );
         registrar.playToClient(
             FinishedSyncPacket.TYPE,
-            FinishedSyncPacket.STREAM_CODEC,
-            FinishedSyncPacket::handle
+            FinishedSyncPacket.STREAM_CODEC
         );
         registrar.playToClient(
             AfterDeathPacket.TYPE,
-            AfterDeathPacket.STREAM_CODEC,
-            AfterDeathPacket::handle
+            AfterDeathPacket.STREAM_CODEC
         );
     }
 }

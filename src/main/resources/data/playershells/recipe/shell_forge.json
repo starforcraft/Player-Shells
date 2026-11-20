@@ -6,15 +6,9 @@
     "III"
   ],
   "key": {
-    "I": {
-      "item": "minecraft:iron_block"
-    },
-    "D": {
-      "item": "playershells:dna"
-    },
-    "N": {
-      "item": "minecraft:ancient_debris"
-    }
+    "I": "minecraft:iron_block",
+    "D": "playershells:dna",
+    "N": "minecraft:ancient_debris"
   },
   "result": {
     "count": 1,

@@ -2,27 +2,27 @@ package com.ultramega.playershells.gui.layer;
 
 import com.ultramega.playershells.registry.ModItems;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
+import net.neoforged.neoforge.client.gui.GuiLayer;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 import static com.ultramega.playershells.items.SyringeItem.MAX_EXTRACT_DURATION;
 import static com.ultramega.playershells.items.SyringeItem.PULSE_POINTS;
 import static com.ultramega.playershells.utils.MathUtils.smoothstep01;
 
-public class BloodLayer implements LayeredDraw.Layer {
-    private static final ResourceLocation UNDERWATER_LOCATION = ResourceLocation.fromNamespaceAndPath(MODID, "textures/gui/blood_overlay.png");
+public class BloodLayer implements GuiLayer {
+    private static final Identifier UNDERWATER_LOCATION = Identifier.fromNamespaceAndPath(MODID, "textures/gui/blood_overlay.png");
 
     private static final float PULSE_WIDTH = 0.02f;
     private static final float MAX_ALPHA = 0.4f;
 
     @Override
-    public void render(final GuiGraphics graphics, final DeltaTracker deltaTracker) {
+    public void render(final GuiGraphicsExtractor graphics, final DeltaTracker deltaTracker) {
         final Minecraft mc = Minecraft.getInstance();
         final Player player = mc.player;
 
@@ -37,15 +37,9 @@ public class BloodLayer implements LayeredDraw.Layer {
         final float usePos = (float) (player.getMainHandItem().getUseDuration(player) - player.getUseItemRemainingTicks()) / MAX_EXTRACT_DURATION;
         final float alpha = pulseAlpha(usePos);
         if (alpha > 0.01f) {
-            RenderSystem.disableDepthTest();
-            RenderSystem.depthMask(false);
-            RenderSystem.enableBlend();
-            graphics.setColor(1.0F, 1.0F, 1.0F, alpha);
-            graphics.blit(UNDERWATER_LOCATION, 0, 0, 0, 0.0F, 0.0F, graphics.guiWidth(), graphics.guiHeight(), graphics.guiWidth(), graphics.guiHeight());
-            RenderSystem.disableBlend();
-            RenderSystem.depthMask(true);
-            RenderSystem.enableDepthTest();
-            graphics.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+            final int tint = (Math.round(alpha * 255) << 24) | 0xffffff;
+            graphics.blit(RenderPipelines.GUI_TEXTURED, UNDERWATER_LOCATION, 0, 0, 0, 0,
+                graphics.guiWidth(), graphics.guiHeight(), graphics.guiWidth(), graphics.guiHeight(), tint);
         }
     }
 

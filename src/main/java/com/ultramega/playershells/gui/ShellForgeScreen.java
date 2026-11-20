@@ -8,25 +8,25 @@ import com.ultramega.playershells.packet.c2s.ShellButtonPressedPacket;
 import com.ultramega.playershells.registry.ModSoundEvents;
 import com.ultramega.playershells.utils.SoundHandler;
 
-import java.util.List;
 import javax.annotation.Nullable;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import org.joml.Matrix3x2fStack;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 
 public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContainerMenu> {
-    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(MODID, "textures/gui/shell_forge.png");
-    private static final ResourceLocation SLOT_SPRITE = ResourceLocation.withDefaultNamespace("container/slot");
+    private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(MODID, "textures/gui/shell_forge.png");
+    private static final Identifier SLOT_SPRITE = Identifier.withDefaultNamespace("container/slot");
     private static final int ENERGY_BAR_HEIGHT = 52;
     private static final float STATUS_TEXT_SCALE = 0.5F;
 
@@ -52,10 +52,10 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         this.shellButton = new ShellButton(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 55, 80, 16, (button) -> {
             if (this.getMenu().getBlockEntity().getShellState() == ShellStates.EXTERMINATE && this.getMenu().getBlockEntity().getLevel() != null) {
                 SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F,
-                    this.getMenu().getBlockEntity().getLevel().random, this.getMenu().getBlockEntity().getBlockPos());
+                    this.getMenu().getBlockEntity().getLevel().getRandom(), this.getMenu().getBlockEntity().getBlockPos());
             }
 
-            PacketDistributor.sendToServer(new ShellButtonPressedPacket(this.getMenu().getBlockEntity().getBlockPos()));
+            ClientPacketDistributor.sendToServer(new ShellButtonPressedPacket(this.getMenu().getBlockEntity().getBlockPos()));
         }, this.getMenu().getBlockEntity());
         this.addRenderableWidget(this.shellButton);
 
@@ -82,19 +82,13 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
     }
 
     @Override
-    public void render(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTick) {
-        super.render(graphics, mouseX, mouseY, partialTick);
-        this.renderTooltip(graphics, mouseX, mouseY);
-    }
-
-    @Override
-    protected void renderBg(final GuiGraphics graphics, final float partialTicks, final int mouseX, final int mouseY) {
-        graphics.blit(BACKGROUND, this.leftPos, this.topPos, 0, 0, this.getXSize(), this.getYSize());
+    public void extractContents(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY, final float partialTicks) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, this.leftPos, this.topPos, 0, 0, this.imageWidth, this.imageHeight, 256, 256);
         if (this.getMenu().getBlockEntity().getShellState() == ShellStates.CREATE) {
-            graphics.blitSprite(SLOT_SPRITE, this.leftPos + 79, this.topPos + 16, 0, 18, 18);
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, this.leftPos + 79, this.topPos + 16, 18, 18);
         }
 
-        final PoseStack poseStack = graphics.pose();
+        final Matrix3x2fStack poseStack = graphics.pose();
 
         if (this.getMenu().getBlockEntity().getShellState() != ShellStates.CREATE) {
             if (this.randomStatusSubText != null) {
@@ -102,29 +96,30 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
                 final int x = (int) (this.leftPos + (this.imageWidth - this.font.width(status.getString()) * STATUS_TEXT_SCALE) / 2);
                 final int y = this.topPos + 47;
 
-                poseStack.pushPose();
-                poseStack.translate(x, y, 0);
-                poseStack.scale(STATUS_TEXT_SCALE, STATUS_TEXT_SCALE, STATUS_TEXT_SCALE);
-                graphics.drawString(this.font, status.getString(), 0, 0, 0xFFFFFFFF);
-                poseStack.popPose();
+                poseStack.pushMatrix();
+                poseStack.translate(x, y);
+                poseStack.scale(STATUS_TEXT_SCALE, STATUS_TEXT_SCALE);
+                graphics.text(this.font, status.getString(), 0, 0, 0xFFFFFFFF);
+                poseStack.popMatrix();
             }
         }
 
         // Draw energy bar
-        graphics.blit(BACKGROUND, this.leftPos + 8, this.topPos + 18, 176, 0, 6, ENERGY_BAR_HEIGHT);
-        final int energyAmount = this.getMenu().getBlockEntity().energyStorage.getEnergyStored();
-        final int energyMaxStored = this.getMenu().getBlockEntity().energyStorage.getMaxEnergyStored();
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, this.leftPos + 8, this.topPos + 18, 176, 0, 6, ENERGY_BAR_HEIGHT, 256, 256);
+        final long energyAmount = this.getMenu().getBlockEntity().energyStorage.getAmountAsLong();
+        final long energyMaxStored = this.getMenu().getBlockEntity().energyStorage.getCapacityAsLong();
         final int energyLevel = (int) (energyAmount * (ENERGY_BAR_HEIGHT / (float) energyMaxStored));
-        graphics.blit(BACKGROUND, this.leftPos + 8, this.topPos + 18, 8, 18, 6, ENERGY_BAR_HEIGHT - energyLevel);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, this.leftPos + 8, this.topPos + 18, 8, 18, 6, ENERGY_BAR_HEIGHT - energyLevel, 256, 256);
+        super.extractContents(graphics, mouseX, mouseY, partialTicks);
     }
 
     @Override
-    protected void renderTooltip(final GuiGraphics graphics, final int mouseX, final int mouseY) {
-        super.renderTooltip(graphics, mouseX, mouseY);
+    protected void extractTooltip(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY) {
+        super.extractTooltip(graphics, mouseX, mouseY);
 
         if (this.isHovering(7, 18, 8, ENERGY_BAR_HEIGHT + 1, mouseX, mouseY)) {
-            graphics.renderTooltip(this.font, List.of(Component.translatable("gui.playershells.energy",
-                this.getMenu().getBlockEntity().energyStorage.getEnergyStored()).getVisualOrderText()), mouseX, mouseY);
+            graphics.setTooltipForNextFrame(this.font, Component.translatable("gui.playershells.energy",
+                this.getMenu().getBlockEntity().energyStorage.getAmountAsLong()), mouseX, mouseY);
         }
     }
 
@@ -134,7 +129,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         if (level == null) {
             return null;
         }
-        final RandomSource random = level.random;
+        final RandomSource random = level.getRandom();
 
         // 70% chance to show the main/correct status
         final boolean useMainText = random.nextDouble() < 0.7;

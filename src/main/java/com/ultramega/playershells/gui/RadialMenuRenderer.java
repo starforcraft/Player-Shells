@@ -1,42 +1,29 @@
 package com.ultramega.playershells.gui;
 
-import com.ultramega.playershells.blockentities.renderer.ShellForgeBlockEntityRenderer.ShaderForcingBuffer;
 import com.ultramega.playershells.entities.ShellEntity;
-import com.ultramega.playershells.registry.ModRenderTypes;
+import com.ultramega.playershells.entities.renderer.ShellRenderer;
+import com.ultramega.playershells.mixin.GuiGraphicsAccessor;
 import com.ultramega.playershells.utils.MathUtils;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 
-import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.Window;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Axis;
-import com.mojang.math.Transformation;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import org.apache.commons.lang3.ArrayUtils;
+import org.joml.Matrix3x2f;
 import org.joml.Quaternionf;
-
-import static com.ultramega.playershells.utils.MathUtils.packRGB8;
+import org.joml.Vector3f;
 
 /**
  * This is heavily inspired by <a href="https://github.com/MatyrobbrtMods/KeyBindBundles/blob/main/src/main/java/com/matyrobbrt/keybindbundles/render/RadialMenuRenderer.java">KeybindBundles</a>
@@ -62,144 +49,62 @@ public abstract class RadialMenuRenderer<T> {
 
     public abstract int getPlayerShellCreationProgress(T entry);
 
-    public void render(final GuiGraphics graphics) {
+    public void render(final GuiGraphicsExtractor graphics) {
         final List<T> entries = this.getEntries();
         if (entries.isEmpty()) {
             return;
         }
 
         final Minecraft mc = Minecraft.getInstance();
-        final PoseStack poseStack = graphics.pose();
-
         mc.mouseHandler.releaseMouse();
-
-        if (this.hoverGrows.length < entries.size()) {
-            this.hoverGrows = ArrayUtils.addAll(this.hoverGrows, IntStream.range(0, entries.size() - this.hoverGrows.length)
-                .map(i -> 0).toArray());
+        if (this.hoverGrows.length != entries.size()) {
+            this.hoverGrows = new int[entries.size()];
+        }
+        if (!mc.isPaused() && !(mc.screen instanceof ChatScreen)) {
+            this.lastIndexUnderMouse = this.getElementUnderMouse();
         }
 
         final int count = entries.size();
-        final float angleSize = 360F / count;
-
-        final int indexUnderMouse = this.getElementUnderMouse();
-        if (!mc.isPaused() && !(mc.screen instanceof ChatScreen)) {
-            this.lastIndexUnderMouse = indexUnderMouse;
+        final float angleSize = 360f / count;
+        final int centerX = graphics.guiWidth() / 2;
+        final int centerY = graphics.guiHeight() / 2;
+        final long now = System.currentTimeMillis();
+        final boolean advanceHover = now - this.lastUpdate >= 25;
+        if (advanceHover) {
+            this.lastUpdate = now;
         }
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-
-        final float centerX = graphics.guiWidth() / 2f;
-        final float centerY = graphics.guiHeight() / 2f;
-        poseStack.pushPose();
-        poseStack.translate(centerX, centerY, 0f);
-
-        for (int i = 0; i < entries.size(); i++) {
+        final var guiState = ((GuiGraphicsAccessor) graphics).playershells$renderState();
+        for (int i = 0; i < count; i++) {
             final boolean highlight = this.lastIndexUnderMouse == i;
-            final float startAngle = -90F + 360F * (-0.5F + i) / count;
-            RadialMenuRenderer.drawTorus(graphics, startAngle, angleSize, INNER, OUTER + 10f * (this.hoverGrows[i] / 10f),
-                0.3f, 0.3f, 0.3f, highlight ? 0.85F : 0.6F);
-        }
-
-        if (!mc.mouseHandler.isMouseGrabbed()) {
-            final long current = System.currentTimeMillis();
-            if (current >= (this.lastUpdate + 1000 / 40)) {
-                this.lastUpdate = current;
-                for (int i = 0; i < entries.size(); i++) {
-                    if (i == this.lastIndexUnderMouse) {
-                        if (this.hoverGrows[i] < 10) {
-                            this.hoverGrows[i]++;
-                        }
-                    } else if (this.hoverGrows[i] > 0) {
-                        this.hoverGrows[i]--;
-                    }
-                }
+            if (advanceHover) {
+                this.hoverGrows[i] = Mth.clamp(this.hoverGrows[i] + (highlight ? 1 : -1), 0, 10);
             }
+            final float start = -90f + angleSize * (i - 0.5f);
+            final float radius = OUTER + this.hoverGrows[i];
+            guiState.addGuiElement(new RingSegment(new Matrix3x2f().translation(centerX, centerY), start, angleSize, radius,
+                highlight ? 0xd94d4d4d : 0x994d4d4d, new ScreenRectangle(centerX - 110, centerY - 110, 220, 220)));
         }
 
-        record PositionedText(float x, float y, Component text) {
-        }
-
-        final List<PositionedText> textToDraw = new ArrayList<>(entries.size());
-
-        float position = 0;
-        for (final T key : entries) {
-            final float degrees = 270 + 360 * (position++ / count);
-            final float angle = Mth.DEG_TO_RAD * degrees;
-            final float x = Mth.cos(angle) * RadialMenuRenderer.MIDDLE_DISTANCE;
-            final float y = Mth.sin(angle) * RadialMenuRenderer.MIDDLE_DISTANCE;
-
-            final ShellEntity shellPlayer = this.getPlayerShell(key);
-            if (shellPlayer != null) {
-                shellPlayer.yBodyRotO = 0F;
-                shellPlayer.yBodyRot = 0F;
-                shellPlayer.setYRot(0F);
-                shellPlayer.yHeadRotO = 0F;
-                shellPlayer.yHeadRot = 0F;
-                shellPlayer.setXRot(0f);
-
-                final EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
-                final MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-
-                final int shellCreationProgress = this.getPlayerShellCreationProgress(key);
-                final ResourceLocation skinTexture = dispatcher.getRenderer(shellPlayer).getTextureLocation(shellPlayer);
-                final RenderType renderType = ModRenderTypes.CREATE_SHADER_TYPE.apply(skinTexture, shellPlayer, shellCreationProgress, 20, packRGB8(54, 188, 184));
-                final MultiBufferSource remappedBuffer = new ShaderForcingBuffer(bufferSource, renderType, shellCreationProgress != 100);
-                final float scale = 20.0F;
-
-                if (shellCreationProgress != 100) {
-                    textToDraw.add(new PositionedText(x, y - 12, Component.literal(shellCreationProgress + "%")));
-                }
-                textToDraw.add(new PositionedText(x, y + 12, this.getTitle(key)));
-
-                poseStack.pushPose();
-                poseStack.translate(x, y + 12, 100F);
-                poseStack.scale(scale, scale, scale);
-                poseStack.mulPose(Axis.ZP.rotationDegrees(180F));
-                poseStack.mulPose(Axis.YP.rotationDegrees(30f));
-
-                final float yPos = new Transformation(poseStack.last().pose()).getTranslation().y;
-                shellPlayer.setPos(0, -yPos + 2, 0);
-
-                dispatcher.overrideCameraOrientation(new Quaternionf(0.0F, 0.0F, 0.0F, 1.0F));
-
-                Lighting.setupForEntityInInventory();
-                dispatcher.setRenderShadow(false);
-                RenderSystem.runAsFancy(() -> {
-                    dispatcher.render(
-                        shellPlayer,
-                        0.0D,
-                        0.0D,
-                        0.0D,
-                        0.0F,
-                        1.0F,
-                        poseStack,
-                        remappedBuffer,
-                        LightTexture.FULL_BRIGHT
-                    );
-                });
-                graphics.flush();
-                dispatcher.setRenderShadow(true);
-                Lighting.setupFor3DItems();
-                poseStack.popPose();
+        graphics.nextStratum();
+        for (int i = 0; i < count; i++) {
+            final T entry = entries.get(i);
+            final ShellEntity entity = this.getPlayerShell(entry);
+            if (entity == null) {
+                continue;
             }
-        }
-
-        final Font font = mc.font;
-        if (!textToDraw.isEmpty()) {
-            for (final PositionedText toDraw : textToDraw) {
-                poseStack.pushPose();
-                poseStack.translate(toDraw.x, toDraw.y, 120F);
-                poseStack.scale(0.6F, 0.6F, 0.6F);
-                final Component text = toDraw.text;
-                graphics.drawString(font, text.getVisualOrderText(), -font.width(text) / 2F, 8, 0xCCFFFFFF, true);
-                poseStack.popPose();
+            final float angle = (-90f + i * angleSize) * Mth.DEG_TO_RAD;
+            final int x = centerX + Math.round(Mth.cos(angle) * MIDDLE_DISTANCE);
+            final int y = centerY + Math.round(Mth.sin(angle) * MIDDLE_DISTANCE);
+            final int progress = this.getPlayerShellCreationProgress(entry);
+            final var state = ShellRenderer.extract(entity, 25, progress, 0x36bcb8, 15728880, progress != 100);
+            graphics.entity(state, 20, new Vector3f(0, state.boundingBoxHeight / 2f, 0),
+                new Quaternionf().rotateZ((float) Math.PI), null, x - 14, y - 20, x + 14, y + 20);
+            if (progress != 100) {
+                graphics.centeredText(mc.font, Component.literal(progress + "%"), x, y - 20, 0xccffffff);
             }
+            graphics.centeredText(mc.font, this.getTitle(entry), x, y + 14, 0xccffffff);
         }
-
-        poseStack.popPose();
-
-        RenderSystem.disableBlend();
     }
 
     public static MousePos getMousePos() {
@@ -241,32 +146,39 @@ public abstract class RadialMenuRenderer<T> {
 
     public void clearState() {
         this.hoverGrows = new int[0];
+        this.lastIndexUnderMouse = -1;
     }
 
-    private static void drawTorus(final GuiGraphics graphics,
-                                  final float startAngle,
-                                  final float sizeAngle,
-                                  final float inner,
-                                  final float outer,
-                                  final float red,
-                                  final float green,
-                                  final float blue,
-                                  final float alpha) {
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        final var vertexBuffer = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
-        final var matrix4f = graphics.pose().last().pose();
-        final float draws = DRAWS * (sizeAngle / 360F);
-        for (int i = 0; i <= draws; i++) {
-            final float degrees = startAngle + (i / DRAWS) * 360;
-            final float angle = Mth.DEG_TO_RAD * degrees;
-            final float cos = Mth.cos(angle);
-            final float sin = Mth.sin(angle);
-            vertexBuffer.addVertex(matrix4f, outer * cos, outer * sin, 0)
-                .setColor(red, green, blue, alpha);
-            vertexBuffer.addVertex(matrix4f, inner * cos, inner * sin, 0)
-                .setColor(red, green, blue, alpha);
+    private record RingSegment(Matrix3x2f pose, float start, float angle, float outer, int color,
+                               ScreenRectangle bounds) implements GuiElementRenderState {
+        @Override
+        public RenderPipeline pipeline() {
+            return RenderPipelines.GUI;
         }
-        BufferUploader.drawWithShader(vertexBuffer.buildOrThrow());
+
+        @Override
+        public TextureSetup textureSetup() {
+            return TextureSetup.noTexture();
+        }
+
+        @Override
+        @Nullable
+        public ScreenRectangle scissorArea() {
+            return null;
+        }
+
+        @Override
+        public void buildVertices(final VertexConsumer vertices) {
+            final int segments = Math.max(1, Mth.ceil(angle * DRAWS / 360f));
+            for (int i = 0; i < segments; i++) {
+                final float from = (start + angle * i / segments) * Mth.DEG_TO_RAD;
+                final float to = (start + angle * (i + 1) / segments) * Mth.DEG_TO_RAD;
+                vertices.addVertexWith2DPose(pose, INNER * Mth.cos(from), INNER * Mth.sin(from)).setColor(color);
+                vertices.addVertexWith2DPose(pose, INNER * Mth.cos(to), INNER * Mth.sin(to)).setColor(color);
+                vertices.addVertexWith2DPose(pose, outer * Mth.cos(to), outer * Mth.sin(to)).setColor(color);
+                vertices.addVertexWith2DPose(pose, outer * Mth.cos(from), outer * Mth.sin(from)).setColor(color);
+            }
+        }
     }
 
     public record MousePos(double x, double y) {

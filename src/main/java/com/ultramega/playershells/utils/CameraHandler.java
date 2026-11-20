@@ -1,10 +1,11 @@
 package com.ultramega.playershells.utils;
 
+
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ReceivingLevelScreen;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -53,7 +54,8 @@ public final class CameraHandler {
     public static void cameraTick(final Camera camera) {
         final Minecraft mc = Minecraft.getInstance();
         // Wait for teleport transition screen to end
-        if (mc.screen instanceof ReceivingLevelScreen) {
+        if (mc.screen instanceof LevelLoadingScreen) {
+            lastNowMs = -1L;
             return;
         }
 
@@ -73,8 +75,9 @@ public final class CameraHandler {
             }
             lastNowMs = now;
 
-            camera.detached = true;
-            applyAnimation(camera, animClockMs);
+            final CameraAccess access = (CameraAccess) camera;
+            access.playershells$setDetached(true);
+            applyAnimation(access, animClockMs);
         }
     }
 
@@ -83,6 +86,7 @@ public final class CameraHandler {
                                           final BlockPos endPosition,
                                           final Direction endFacing,
                                           final Runnable onFinished) {
+        resetPosition();
         CameraHandler.startPosition = startPosition != null ? startPosition.getCenter().add(0, 0.2, 0) : null;
         CameraHandler.startFacing = startFacing;
         CameraHandler.endPosition = endPosition.getCenter().add(0, 0.2, 0);
@@ -128,7 +132,7 @@ public final class CameraHandler {
             startYaw = startFacing.toYRot();
             startMidYaw = Mth.wrapDegrees(startYaw + 180.0f);
         } else {
-            p1Forward = camera.getPosition();
+            p1Forward = camera.position();
             p2Up = p1Forward.add(0.0, BLOCKS_UP, 0.0);
         }
 
@@ -138,7 +142,7 @@ public final class CameraHandler {
         endMidYaw = Mth.wrapDegrees(endYaw + 180.0f);
     }
 
-    private static void applyAnimation(final Camera camera, final long elapsedMs) {
+    private static void applyAnimation(final CameraAccess camera, final long elapsedMs) {
         if (p2Up == null) {
             return;
         }
@@ -151,8 +155,8 @@ public final class CameraHandler {
                 final float t = (float) elapsed / (float) PHASE1_MS;
                 final Vec3 pos = lerpVec3(p0Start, p1Forward, t);
                 final float yaw = lerpAngle(startYaw, startMidYaw, t);
-                camera.setPosition(pos);
-                camera.setRotation(yaw, 0.0f, 0.0F);
+                camera.playershells$setPosition(pos);
+                camera.playershells$setRotation(yaw, 0.0f, 0.0F);
             } else if (elapsed <= forwardTotal) {
                 // Phase 2: rise for 2s, yaw fixed at startMidYaw, animate pitch 0 -> 90
                 final long phase2Elapsed = elapsed - PHASE1_MS;
@@ -167,16 +171,18 @@ public final class CameraHandler {
                     pitch = 90.0f;
                 }
 
-                camera.setPosition(pos);
-                camera.setRotation(startMidYaw, pitch, 0.0F);
+                camera.playershells$setPosition(pos);
+                camera.playershells$setRotation(startMidYaw, pitch, 0.0F);
             } else {
                 // Switch to reverse run: start from top
-                camera.setPosition(p2Up);
-                camera.setRotation(startMidYaw, 90.0f, 0.0F);
+                camera.playershells$setPosition(p2Up);
+                camera.playershells$setRotation(startMidYaw, 90.0f, 0.0F);
                 reversing = true;
                 animClockMs = 0L;
                 if (onFinished != null) {
-                    onFinished.run();
+                    final Runnable callback = onFinished;
+                    onFinished = null;
+                    callback.run();
                 }
             }
             return;
@@ -194,8 +200,8 @@ public final class CameraHandler {
             // Reverse of Phase 2: descend (and slide) yaw fixed at endMidYaw
             final float tDown = (float) elapsed / (float) PHASE2_MS;
             final Vec3 pos = lerpVec3(p2Up, e1Forward, tDown);
-            camera.setPosition(pos);
-            camera.setRotation(endMidYaw, 90.0F, 0.0F);
+            camera.playershells$setPosition(pos);
+            camera.playershells$setRotation(endMidYaw, 90.0F, 0.0F);
         } else if (elapsed <= PHASE2_MS + PHASE1_MS) {
             // Reverse of Phase 1: move 1 block back to end + rotate from endMidYaw -> endYaw
             final long phase1BackElapsed = elapsed - PHASE2_MS;
@@ -212,11 +218,11 @@ public final class CameraHandler {
                 pitch = 0.0f;
             }
 
-            camera.setPosition(pos);
-            camera.setRotation(yaw, pitch, 0.0F);
+            camera.playershells$setPosition(pos);
+            camera.playershells$setRotation(yaw, pitch, 0.0F);
         } else {
-            camera.setPosition(e0End);
-            camera.setRotation(endYaw, 0.0f, 0.0F);
+            camera.playershells$setPosition(e0End);
+            camera.playershells$setRotation(endYaw, 0.0f, 0.0F);
             resetPosition();
         }
     }

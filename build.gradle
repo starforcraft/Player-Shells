@@ -1,9 +1,9 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.107'
+    id 'net.neoforged.moddev' version '2.0.148'
     id 'idea'
-    id 'me.modmuss50.mod-publish-plugin' version '1.0.0'
+    id 'me.modmuss50.mod-publish-plugin' version '2.1.1'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -13,53 +13,31 @@ tasks.named('wrapper', Wrapper).configure {
 version = mod_version
 group = mod_group_id
 
-repositories {
-    mavenLocal()
-    maven {
-        name = 'JEI'
-        url = "https://maven.blamejared.com/"
-    }
-    maven {
-        url "https://www.cursemaven.com"
-    }
-}
-
 base {
     archivesName = mod_id
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 neoForge {
     version = project.neo_version
 
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
-
-    accessTransformers = project.files('src/main/templates/META-INF/accesstransformer.cfg')
-
     runs {
         client {
             client()
-
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         server {
             server()
             programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         gameTestServer {
             type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         data {
-            data()
+            clientData()
 
             programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
@@ -81,18 +59,6 @@ neoForge {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
-dependencies {
-    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
-    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
-    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
-
-    implementation "curse.maven:corailtombstone-243707:6919850"
-}
 
 publishMods {
     changelog = currentChangelog
@@ -122,7 +88,6 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             neo_version            : neo_version,
             neo_version_range      : neo_version_range,
             loader_version_range   : loader_version_range,
-            jei_version            : jei_version,
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_url                : mod_url,

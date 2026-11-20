@@ -1,54 +1,52 @@
 package com.ultramega.playershells.items.extensions;
 
+import com.ultramega.playershells.registry.ModItems;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.PlayerModelPart;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
+import net.neoforged.neoforge.client.event.RenderHandEvent;
 
-public class SyringeItemExtension implements IClientItemExtensions {
-    @Override
-    public boolean applyForgeHandTransform(final PoseStack poseStack,
-                                           final LocalPlayer player,
-                                           final HumanoidArm arm,
-                                           final ItemStack stackInHand,
-                                           final float partialTicks,
-                                           final float equippedProgress,
-                                           final float swingProgress) {
-        if (player.getOffhandItem().is(stackInHand.getItem())) {
-            return false;
-        }
-
-        final int useDuration = stackInHand.getUseDuration(player);
-        final int remainingUseTicks = player.getUseItemRemainingTicks();
-        final int useTicks = useDuration - remainingUseTicks;
-
+public final class SyringeItemExtension {
+    public static void renderHand(final RenderHandEvent event) {
         final Minecraft mc = Minecraft.getInstance();
-        final MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
-        final int packedLight = mc.getEntityRenderDispatcher().getPackedLightCoords(player, partialTicks);
-
-        float equipProgress = equippedProgress;
-        if (player.isUsingItem()) {
-            equipProgress = 0;
-
-            if (remainingUseTicks > 0) {
-                this.renderLeftPlayerArm(mc, player, poseStack, bufferSource, packedLight, partialTicks, useTicks);
-            }
+        final LocalPlayer player = mc.player;
+        final ItemStack syringe = event.getItemStack();
+        if (player == null || event.getHand() != InteractionHand.MAIN_HAND || !syringe.is(ModItems.EMPTY_SYRINGE.get())
+            || !player.getOffhandItem().isEmpty()) {
+            return;
         }
-        this.renderRightPlayerArm(mc, player, poseStack, bufferSource, packedLight, partialTicks, equipProgress, useTicks, useDuration);
 
-        return true;
+        final PoseStack pose = event.getPoseStack();
+        final SubmitNodeCollector nodes = event.getSubmitNodeCollector();
+        final int light = event.getPackedLight();
+        final int duration = syringe.getUseDuration(player);
+        final boolean extracting = player.isUsingItem() && player.getUsedItemHand() == InteractionHand.MAIN_HAND;
+        final int ticks = extracting ? duration - player.getUseItemRemainingTicks() : 0;
+        final float equipped = extracting ? 0 : event.getEquipProgress();
+
+        event.setCanceled(true);
+        pose.pushPose();
+        if (extracting) {
+            renderLeftPlayerArm(mc, player, pose, nodes, light, event.getPartialTick(), ticks);
+        }
+        renderRightPlayerArm(mc, player, pose, nodes, light, event.getPartialTick(), equipped, ticks, duration);
+        mc.getEntityRenderDispatcher().getItemInHandRenderer()
+            .renderItem(player, syringe, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, pose, nodes, light);
+        pose.popPose();
     }
 
-    private void renderLeftPlayerArm(final Minecraft mc,
+    private static void renderLeftPlayerArm(final Minecraft mc,
                                      final LocalPlayer localPlayer,
                                      final PoseStack poseStack,
-                                     final MultiBufferSource buffer,
+                                     final SubmitNodeCollector buffer,
                                      final int packedLight,
                                      final float partialTicks,
                                      final int useTicks) {
@@ -71,16 +69,16 @@ public class SyringeItemExtension implements IClientItemExtensions {
         poseStack.translate(0.1F, -0.1F, 0.5F);
         poseStack.mulPose(Axis.ZP.rotationDegrees(20.0F));
 
-        final PlayerRenderer playerRenderer = (PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(localPlayer);
-        playerRenderer.renderLeftHand(poseStack, buffer, packedLight, localPlayer);
+        mc.getEntityRenderDispatcher().getPlayerRenderer(localPlayer).renderLeftHand(poseStack, buffer, packedLight,
+            localPlayer.getSkin().body().texturePath(), localPlayer.isModelPartShown(PlayerModelPart.LEFT_SLEEVE), localPlayer);
 
         poseStack.popPose();
     }
 
-    private void renderRightPlayerArm(final Minecraft mc,
+    private static void renderRightPlayerArm(final Minecraft mc,
                                       final LocalPlayer localPlayer,
                                       final PoseStack poseStack,
-                                      final MultiBufferSource buffer,
+                                      final SubmitNodeCollector buffer,
                                       final int packedLight,
                                       final float partialTicks,
                                       final float equippedProgress,
@@ -107,8 +105,8 @@ public class SyringeItemExtension implements IClientItemExtensions {
 
         poseStack.mulPose(Axis.YP.rotationDegrees(10));
 
-        final PlayerRenderer playerRenderer = (PlayerRenderer) mc.getEntityRenderDispatcher().getRenderer(localPlayer);
-        playerRenderer.renderRightHand(poseStack, buffer, packedLight, localPlayer);
+        mc.getEntityRenderDispatcher().getPlayerRenderer(localPlayer).renderRightHand(poseStack, buffer, packedLight,
+            localPlayer.getSkin().body().texturePath(), localPlayer.isModelPartShown(PlayerModelPart.RIGHT_SLEEVE), localPlayer);
 
         poseStack.popPose();
 

@@ -14,12 +14,8 @@ import static com.ultramega.playershells.PlayerShells.MODID;
 public final class ModBlockEntityTypes {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES = DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, MODID);
 
-    public static final Supplier<BlockEntityType<ShellForgeBlockEntity>> SHELL_FORGE = BLOCK_ENTITY_TYPES.register("shell_forge", () -> BlockEntityType.Builder
-        .of(ShellForgeBlockEntity::new, ModBlocks.SHELL_FORGE.get())
-        .build(null));
-    public static final Supplier<BlockEntityType<CentrifugeBlockEntity>> CENTRIFUGE = BLOCK_ENTITY_TYPES.register("centrifuge", () -> BlockEntityType.Builder
-        .of(CentrifugeBlockEntity::new, ModBlocks.CENTRIFUGE.get())
-        .build(null));
+    public static final Supplier<BlockEntityType<ShellForgeBlockEntity>> SHELL_FORGE = BLOCK_ENTITY_TYPES.register("shell_forge", () -> new BlockEntityType<>(ShellForgeBlockEntity::new, ModBlocks.SHELL_FORGE.get()));
+    public static final Supplier<BlockEntityType<CentrifugeBlockEntity>> CENTRIFUGE = BLOCK_ENTITY_TYPES.register("centrifuge", () -> new BlockEntityType<>(CentrifugeBlockEntity::new, ModBlocks.CENTRIFUGE.get()));
 
     private ModBlockEntityTypes() {
     }

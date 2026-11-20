@@ -6,13 +6,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 
 public record ShellButtonPressedPacket(BlockPos shellForgePos) implements CustomPacketPayload {
-    public static final Type<ShellButtonPressedPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "shell_button_pressed_packet"));
+    public static final Type<ShellButtonPressedPacket> TYPE = new Type<>(Identifier.fromNamespaceAndPath(MODID, "shell_button_pressed_packet"));
     public static final StreamCodec<RegistryFriendlyByteBuf, ShellButtonPressedPacket> STREAM_CODEC = StreamCodec.composite(
         BlockPos.STREAM_CODEC, ShellButtonPressedPacket::shellForgePos,
         ShellButtonPressedPacket::new

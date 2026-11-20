@@ -1,15 +1,16 @@
 package com.ultramega.playershells.packet.c2s;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.utils.PositionReference;
+import com.ultramega.playershells.utils.ShellPlayer;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
@@ -20,7 +21,7 @@ import static com.ultramega.playershells.PlayerShells.MODID;
 import static com.ultramega.playershells.utils.MathUtils.findTargetLevel;
 
 public record TransferPlayerPacket(PositionReference oldShellForgePos, PositionReference newShellForgePos) implements CustomPacketPayload {
-    public static final Type<TransferPlayerPacket> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath(MODID, "transfer_player_packet"));
+    public static final Type<TransferPlayerPacket> TYPE = new Type<>(Identifier.fromNamespaceAndPath(MODID, "transfer_player_packet"));
     public static final StreamCodec<RegistryFriendlyByteBuf, TransferPlayerPacket> STREAM_CODEC = StreamCodec.composite(
         PositionReference.STREAM_CODEC, TransferPlayerPacket::oldShellForgePos,
         PositionReference.STREAM_CODEC, TransferPlayerPacket::newShellForgePos,
@@ -49,12 +50,17 @@ public record TransferPlayerPacket(PositionReference oldShellForgePos, PositionR
         final ServerLevel oldTargetLevel = findTargetLevel(server, oldShellForgePos);
         final ServerLevel newTargetLevel = findTargetLevel(server, newShellForgePos);
 
-        if (oldTargetLevel != null && oldTargetLevel.getBlockEntity(oldShellForgePos.pos()) instanceof ShellForgeBlockEntity shellForge) {
-            shellForge.transferPlayerFrom(player);
+        if (oldShellForgePos == null || oldTargetLevel != player.level() || newTargetLevel == null
+            || !(player instanceof ShellPlayer shellPlayer) || player.blockPosition().distSqr(oldShellForgePos.pos()) > 4
+            || !(oldTargetLevel.getBlockEntity(oldShellForgePos.pos()) instanceof ShellForgeBlockEntity oldForge)
+            || !(newTargetLevel.getChunkAt(newShellForgePos.pos()).getBlockEntity(newShellForgePos.pos()) instanceof ShellForgeBlockEntity newForge)
+            || oldForge == newForge) {
+            return;
         }
-        if (newTargetLevel != null && newTargetLevel.getBlockEntity(newShellForgePos.pos()) instanceof ShellForgeBlockEntity shellForge
-            && shellForge.getShellState() == ShellStates.EXTERMINATE) {
-            shellForge.transferPlayerTo(player);
+
+        final CompoundTag oldBody = shellPlayer.playershells$getData();
+        if (newForge.transferPlayerTo(player, () -> { })) {
+            oldForge.transferPlayerFrom(player, oldBody);
         }
     }
 }

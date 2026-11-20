@@ -7,60 +7,58 @@ import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModBlocks;
 import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
-import com.ultramega.playershells.registry.ModSoundEvents;
 import com.ultramega.playershells.storage.ShellSavedData;
 import com.ultramega.playershells.storage.ShellState;
+import com.ultramega.playershells.utils.MachineInventory;
 import com.ultramega.playershells.utils.ObservableEnergyStorage;
 import com.ultramega.playershells.utils.PositionReference;
 import com.ultramega.playershells.utils.ShellPlayer;
-import com.ultramega.playershells.utils.SoundHandler;
 
 import java.util.Objects;
 import java.util.UUID;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.Nameable;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.items.ItemStackHandler;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 import static com.ultramega.playershells.Config.SHELL_FORGE_DNA_AMOUNT;
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.OPEN;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.isOpen;
-import static com.ultramega.playershells.blocks.ShellForgeBlock.movePlayerInside;
-import static com.ultramega.playershells.blocks.ShellForgeBlock.movePlayerTo;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.setValue;
 import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
 import static com.ultramega.playershells.utils.MathUtils.hasPlayerInside;
-import static com.ultramega.playershells.utils.MathUtils.isPlayerInFront;
 
 public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, Nameable {
     private static final float OPEN_SPEED = 0.12f;
 
-    public final ItemStackHandler inventoryHandler = new ItemStackHandler(1) {
+    public final MachineInventory inventoryHandler = new MachineInventory(1) {
         @Override
-        public void onContentsChanged(final int slot) {
+        public void setChanged() {
+            super.setChanged();
             ShellForgeBlockEntity.super.setChanged();
         }
     };
@@ -128,37 +126,13 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         blockEntity.setChanged();
     }
 
-    @OnlyIn(Dist.CLIENT)
-    public static void clientTick(final Level level, final BlockPos pos, final BlockState state, final ShellForgeBlockEntity blockEntity) {
-        blockEntity.animPrevProgress = blockEntity.animProgress;
-        final float target = state.getValue(OPEN) ? 1.0f : 0.0f;
-
-        if (blockEntity.animProgress < target) {
-            blockEntity.animProgress = Math.min(target, blockEntity.animProgress + OPEN_SPEED);
-        } else if (blockEntity.animProgress > target) {
-            blockEntity.animProgress = Math.max(target, blockEntity.animProgress - OPEN_SPEED);
-        }
-
-        if (blockEntity.shellState == ShellStates.EXTERMINATING) {
-            if (level.random.nextDouble() < 0.1) {
-                SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F, level.random, pos);
-            }
-        } else {
-            SoundHandler.stopAllBlockSounds(pos);
-        }
-
-        final Player player = Minecraft.getInstance().player;
-        if (player == null || !state.getValue(OPEN)) {
-            return;
-        }
-
-        if (blockEntity.level != null && !isPlayerInFront(pos, blockEntity.level, player.getUUID(), state.getValue(FACING))) {
-            return;
-        }
-        if (blockEntity.playerState == PlayerStates.GOING_IN || blockEntity.playerState == PlayerStates.INSIDE) {
-            movePlayerInside(player, pos, state.getValue(FACING));
-        } else if (blockEntity.playerState == PlayerStates.GOING_OUT) {
-            movePlayerTo(player, pos.relative(state.getValue(FACING)), 0);
+    public void tickDoorAnimation(final boolean open) {
+        this.animPrevProgress = this.animProgress;
+        final float target = open ? 1.0f : 0.0f;
+        if (this.animProgress < target) {
+            this.animProgress = Math.min(target, this.animProgress + OPEN_SPEED);
+        } else if (this.animProgress > target) {
+            this.animProgress = Math.max(target, this.animProgress - OPEN_SPEED);
         }
     }
 
@@ -181,30 +155,32 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         }
     }
 
-    public void transferPlayerTo(final Player player) {
+    public boolean transferPlayerTo(final Player player, final Runnable afterTeleport) {
         //TODO decrease water level, remove mask on client
-        if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer) {
+        if (this.shellState == ShellStates.EXTERMINATE && this.playerUuid.equals(player.getUUID())
+            && this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer) {
             final ShellState shellState = ShellSavedData.getShellData(serverLevel).get(this.playerUuid, this.shellUuid);
-            if (shellState != null) {
-                shellPlayer.playershells$applyData(shellState.playerData(), shellState.shellForgePos());
+            if (shellState != null && shellPlayer.playershells$applyData(shellState.playerData(), shellState.shellForgePos(), afterTeleport)) {
                 this.playerState = PlayerStates.TRANSFERRED;
                 this.exterminateShell();
 
                 setValue(this.getBlockState(), this.level, this.getBlockPos(), new BoolProperty(OPEN, true));
+                return true;
             }
         }
+        return false;
     }
 
-    public void transferPlayerFrom(final Player player) {
+    public void transferPlayerFrom(final Player player, final CompoundTag playerData) {
         this.setPlayerUuid(player.getUUID());
         this.shellState = ShellStates.EXTERMINATE;
         this.playerState = PlayerStates.NONE;
         this.shellPercentage = 100;
-        if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer) {
+        if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
-                this.shellUuid, new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), this.level.dimension().location()),
-                shellPlayer.playershells$getData(), 100));
+                this.shellUuid, new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), this.level.dimension().identifier()),
+                playerData, 100));
         }
         this.setChanged();
     }
@@ -214,16 +190,16 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             return;
         }
 
-        final UUID playerUUID = Objects.requireNonNull(this.inventoryHandler.getStackInSlot(0).get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
+        final UUID playerUUID = Objects.requireNonNull(this.inventoryHandler.getItem(0).get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
-        this.inventoryHandler.extractItem(0, SHELL_FORGE_DNA_AMOUNT.get(), false);
+        this.inventoryHandler.removeItem(0, SHELL_FORGE_DNA_AMOUNT.get());
         this.setPlayerUuid(playerUUID);
         this.shellState = ShellStates.CREATING;
         if (this.level instanceof ServerLevel serverLevel) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
-                this.shellUuid, new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), this.level.dimension().location()),
+                this.shellUuid, new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), this.level.dimension().identifier()),
                 this.createFreshPlayerData(serverLevel), 0));
         }
         this.setChanged();
@@ -241,21 +217,29 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     private CompoundTag createFreshPlayerData(final ServerLevel serverLevel) {
-        final CommonListenerCookie cookie = CommonListenerCookie.createInitial(new GameProfile(UUID.randomUUID(), ""), false);
-        return new ServerPlayer(serverLevel.getServer(), serverLevel, cookie.gameProfile(), cookie.clientInformation())
-            .saveWithoutId(new CompoundTag());
+        final GameType gameMode = serverLevel.getServer().getDefaultGameType();
+        final Player body = new Player(serverLevel, new GameProfile(this.playerUuid, "")) {
+            @Override
+            public GameType gameMode() {
+                return gameMode;
+            }
+        };
+        final TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, serverLevel.registryAccess());
+        body.saveWithoutId(output);
+        output.discard(Entity.TAG_UUID);
+        output.store("playerGameType", GameType.LEGACY_ID_CODEC, gameMode);
+        return output.buildResult();
     }
 
     public boolean canCreateShell() {
         final int energyNeeded = Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get();
 
-        final ItemStack stack = this.inventoryHandler.getStackInSlot(0);
+        final ItemStack stack = this.inventoryHandler.getItem(0);
         if (stack.isEmpty() || !stack.is(ModItems.DNA) || !stack.has(ModDataComponentTypes.OWNER_PLAYER.get())) {
             return false;
         }
 
-        final boolean canExtractStack = this.inventoryHandler.extractItem(0, SHELL_FORGE_DNA_AMOUNT.get(), true).getCount() >= SHELL_FORGE_DNA_AMOUNT.get();
-        if (!canExtractStack) {
+        if (stack.getCount() < SHELL_FORGE_DNA_AMOUNT.get()) {
             return false;
         }
 
@@ -296,54 +280,34 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
-    protected void loadAdditional(final CompoundTag tag, final HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-
-        if (tag.contains("inv")) {
-            this.inventoryHandler.deserializeNBT(registries, tag.getCompound("inv"));
-        }
-        if (tag.contains("energy")) {
-            this.energyStorage.deserializeNBT(registries, tag.get("energy"));
-        }
-        if (tag.contains("playerUuid")) {
-            this.playerUuid = tag.getUUID("playerUuid");
-        }
-        if (tag.contains("playerState")) {
-            this.playerState = PlayerStates.values()[tag.getInt("playerState")];
-        }
-        if (tag.contains("shellUuid")) {
-            this.shellUuid = tag.getUUID("shellUuid");
-        }
-        if (tag.contains("shellState")) {
-            this.shellState = ShellStates.values()[tag.getInt("shellState")];
-        }
-        if (tag.contains("shellPercentage")) {
-            this.shellPercentage = tag.getInt("shellPercentage");
-        }
-        if (tag.contains("shellPercentageCooldownTick")) {
-            this.shellPercentageCooldownTick = tag.getInt("shellPercentageCooldownTick");
-        }
+    protected void loadAdditional(final ValueInput input) {
+        super.loadAdditional(input);
+        this.inventoryHandler.load(input.childOrEmpty("inv"));
+        this.energyStorage.set(input.getIntOr("energy", 0));
+        this.playerUuid = input.read("playerUuid", UUIDUtil.CODEC).orElse(EMPTY_UUID);
+        this.playerState = PlayerStates.values()[Mth.clamp(input.getIntOr("playerState", 0), 0, PlayerStates.values().length - 1)];
+        this.shellUuid = input.read("shellUuid", UUIDUtil.CODEC).orElse(EMPTY_UUID);
+        this.shellState = ShellStates.values()[Mth.clamp(input.getIntOr("shellState", 0), 0, ShellStates.values().length - 1)];
+        this.shellPercentage = input.getIntOr("shellPercentage", 0);
+        this.shellPercentageCooldownTick = input.getIntOr("shellPercentageCooldownTick", 0);
     }
 
     @Override
-    protected void saveAdditional(final CompoundTag tag, final HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-
-        tag.put("inv", this.inventoryHandler.serializeNBT(registries));
-        tag.put("energy", this.energyStorage.serializeNBT(registries));
-        tag.putUUID("playerUuid", this.playerUuid);
-        tag.putInt("playerState", this.playerState.ordinal());
-        tag.putUUID("shellUuid", this.shellUuid);
-        tag.putInt("shellState", this.shellState.ordinal());
-        tag.putInt("shellPercentage", this.shellPercentage);
-        tag.putInt("shellPercentageCooldownTick", this.shellPercentageCooldownTick);
+    protected void saveAdditional(final ValueOutput output) {
+        super.saveAdditional(output);
+        this.inventoryHandler.save(output.child("inv"));
+        output.putInt("energy", (int) this.energyStorage.getAmountAsLong());
+        output.store("playerUuid", UUIDUtil.CODEC, this.playerUuid);
+        output.putInt("playerState", this.playerState.ordinal());
+        output.store("shellUuid", UUIDUtil.CODEC, this.shellUuid);
+        output.putInt("shellState", this.shellState.ordinal());
+        output.putInt("shellPercentage", this.shellPercentage);
+        output.putInt("shellPercentageCooldownTick", this.shellPercentageCooldownTick);
     }
 
     @Override
     public CompoundTag getUpdateTag(final HolderLookup.Provider registries) {
-        final CompoundTag tag = new CompoundTag();
-        this.saveAdditional(tag, registries);
-        return tag;
+        return this.saveWithoutMetadata(registries);
     }
 
     @Override

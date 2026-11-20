@@ -1,17 +1,17 @@
 package com.ultramega.playershells.container;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.registry.ModItems;
 
+import net.minecraft.world.Container;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
 
-public class ShellSlotItemHandler extends SlotItemHandler {
+public class ShellSlotItemHandler extends Slot {
     private final ShellForgeBlockEntity shellForge;
 
-    public ShellSlotItemHandler(final IItemHandler itemHandler, final int index, final int x, final int y, final ShellForgeBlockEntity shellForge) {
+    public ShellSlotItemHandler(final Container itemHandler, final int index, final int x, final int y, final ShellForgeBlockEntity shellForge) {
         super(itemHandler, index, x, y);
         this.shellForge = shellForge;
     }

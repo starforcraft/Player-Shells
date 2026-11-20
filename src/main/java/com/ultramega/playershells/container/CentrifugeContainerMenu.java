@@ -17,9 +17,6 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.neoforged.neoforge.items.IItemHandler;
-import net.neoforged.neoforge.items.SlotItemHandler;
-import net.neoforged.neoforge.items.wrapper.InvWrapper;
 
 import static com.ultramega.playershells.blockentities.CentrifugeBlockEntity.PROCESSING_TOTAL_TIME;
 
@@ -39,28 +36,27 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
         this.blockEntity = blockEntity;
         this.access = access;
 
-        this.addSlot(new SlotItemHandler(blockEntity.inventoryHandler, 0, 56, 34) {
+        this.addSlot(new Slot(blockEntity.inventoryHandler, 0, 56, 34) {
             @Override
             public boolean mayPlace(final ItemStack stack) {
                 return stack.is(ModItems.BLOOD_SYRINGE.get()) && stack.has(ModDataComponentTypes.OWNER_PLAYER.get());
             }
         });
-        this.addSlot(new SlotItemHandler(blockEntity.inventoryHandler, 1, 116, 35) {
+        this.addSlot(new Slot(blockEntity.inventoryHandler, 1, 116, 35) {
             @Override
             public boolean mayPlace(final ItemStack stack) {
                 return false;
             }
         });
 
-        final IItemHandler itemHandler = new InvWrapper(playerInventory);
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {
-                this.addSlot(new SlotItemHandler(itemHandler, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
+                this.addSlot(new Slot(playerInventory, j + i * 9 + 9, 8 + j * 18, 84 + i * 18));
             }
         }
 
         for (int i = 0; i < 9; i++) {
-            this.addSlot(new SlotItemHandler(itemHandler, i, 8 + i * 18, 142));
+            this.addSlot(new Slot(playerInventory, i, 8 + i * 18, 142));
         }
     }
 

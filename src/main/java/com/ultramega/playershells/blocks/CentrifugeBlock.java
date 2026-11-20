@@ -30,7 +30,7 @@ public class CentrifugeBlock extends Block implements EntityBlock {
             if (!level.isClientSide()) {
                 player.openMenu(blockEntity, pos);
             }
-            return InteractionResult.SUCCESS_NO_ITEM_USED;
+            return InteractionResult.SUCCESS.withoutItem();
         }
         return super.useWithoutItem(state, level, pos, player, hitResult);
     }

@@ -6,18 +6,10 @@
     "III"
   ],
   "key": {
-    "I": {
-      "item": "minecraft:iron_block"
-    },
-    "R": {
-      "item": "minecraft:redstone_block"
-    },
-    "B": {
-      "item": "minecraft:bucket"
-    },
-    "S": {
-      "item": "playershells:empty_syringe"
-    }
+    "I": "minecraft:iron_block",
+    "R": "minecraft:redstone_block",
+    "B": "minecraft:bucket",
+    "S": "playershells:empty_syringe"
   },
   "result": {
     "count": 1,
