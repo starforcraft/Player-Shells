@@ -156,14 +156,18 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
 
         final float bottomWidth = 82f;
         final float offsetX = (invWidth / 2f - bottomWidth) / 2f;
-        final int currentHealth = Mth.ceil(shellEntry.stats().get().health());
+        final StatEntry stats = shellEntry.stats().get();
+        final int currentHealth = Mth.ceil(stats.health());
         //final float maxHealth = Math.max((float) statEntry.health().getAttributeValue(Attributes.MAX_HEALTH), currentHealth)); //TODO
 
         pose.pushMatrix();
         pose.translate(centerX - (OUTER + 15f) - invWidth / 2f + offsetX, centerY - invHeight / 2f / 2f + invHeight / 2f + 10f);
-        this.renderArmor(graphics, shellEntry.stats().get(), 0, 0);
-        this.renderHearts(graphics, 0, 10, 5, 20f, currentHealth, 0);
-        this.renderFood(graphics, shellEntry.stats().get(), 0, 20);
+        final int healthY = stats.armorValue() > 0 ? 10 : 0;
+        if (healthY > 0) {
+            this.renderArmor(graphics, stats.armorValue(), 0, 0);
+        }
+        this.renderHearts(graphics, 0, healthY, 5, 20f, currentHealth, 0);
+        this.renderFood(graphics, stats, 0, healthY + 10);
         pose.popMatrix();
     }
 
@@ -285,28 +289,12 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     /**
      * Copied and modified from {@link Gui#renderArmor(GuiGraphics, Player, int, int, int, int)}
      */
-    private void renderArmor(final GuiGraphicsExtractor guiGraphics, final StatEntry stats, final int x, final int y) {
-        final int armorValue = stats.armorValue();
-        if (armorValue > 0) {
-
-
-            for (int i = 0; i < 10; ++i) {
-                final int armorIndex = i * 2 + 1;
-                final int posX = x + i * 8;
-
-                if (armorIndex < armorValue) {
-                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_FULL_SPRITE, posX, y, 9, 9);
-                }
-
-                if (armorIndex == armorValue) {
-                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_HALF_SPRITE, posX, y, 9, 9);
-                }
-
-                if (armorIndex > armorValue) {
-                    guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, ARMOR_EMPTY_SPRITE, posX, y, 9, 9);
-                }
-            }
-
+    private void renderArmor(final GuiGraphicsExtractor graphics, final int armorValue, final int x, final int y) {
+        for (int i = 0; i < 10; i++) {
+            final int armorIndex = i * 2 + 1;
+            final Identifier sprite = armorIndex < armorValue ? ARMOR_FULL_SPRITE
+                : armorIndex == armorValue ? ARMOR_HALF_SPRITE : ARMOR_EMPTY_SPRITE;
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x + i * 8, y, 9, 9);
         }
     }
 

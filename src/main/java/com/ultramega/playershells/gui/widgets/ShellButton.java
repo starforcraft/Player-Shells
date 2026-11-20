@@ -63,7 +63,7 @@ public class ShellButton extends Button {
                 this.dotCount = (this.dotCount + 1) % 4;
             }
         } else {
-            this.active = true;
+            this.active = state == ShellStates.EXTERMINATE;
             this.resetDots();
         }
         this.setMessage(state);

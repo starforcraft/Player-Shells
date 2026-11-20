@@ -21,7 +21,7 @@ public final class PayloadEvent {
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.0");
+        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.1");
         registrar.playToServer(
             ShellButtonPressedPacket.TYPE,
             ShellButtonPressedPacket.STREAM_CODEC,

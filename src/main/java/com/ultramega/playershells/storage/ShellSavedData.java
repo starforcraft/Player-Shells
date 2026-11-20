@@ -2,6 +2,7 @@ package com.ultramega.playershells.storage;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.packet.s2c.SyncShellDataPacket;
+import com.ultramega.playershells.utils.PositionReference;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -9,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Map;
 import java.util.UUID;
@@ -17,6 +19,8 @@ import javax.annotation.Nullable;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimap;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
@@ -39,16 +43,64 @@ import static com.ultramega.playershells.PlayerShells.MODID;
 import static com.ultramega.playershells.utils.MathUtils.findTargetLevel;
 
 public class ShellSavedData extends SavedData {
+    private static final Codec<ShellSavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+        ShellState.MULTIMAP_CODEC.fieldOf("active").forGetter(data -> data.entries),
+        ShellState.MULTIMAP_CODEC.fieldOf("archived").forGetter(data -> data.archived)
+    ).apply(instance, ShellSavedData::new));
+
     private static final SavedDataType<ShellSavedData> TYPE = new SavedDataType<>(
         Identifier.fromNamespaceAndPath(MODID, "player_shells"),
-        () -> new ShellSavedData(ArrayListMultimap.create()),
-        ShellState.MULTIMAP_CODEC.xmap(ShellSavedData::new, data -> data.entries)
+        ShellSavedData::new,
+        Codec.withAlternative(CODEC, ShellState.MULTIMAP_CODEC.xmap(
+            entries -> new ShellSavedData(entries, ArrayListMultimap.create()), data -> data.entries))
     );
 
     private final Multimap<UUID, ShellState> entries;
+    private final Multimap<UUID, ShellState> archived;
 
-    private ShellSavedData(final Multimap<UUID, ShellState> entries) {
+    private ShellSavedData() {
+        this(ArrayListMultimap.create(), ArrayListMultimap.create());
+    }
+
+    private ShellSavedData(final Multimap<UUID, ShellState> entries, final Multimap<UUID, ShellState> archived) {
         this.entries = ArrayListMultimap.create(entries);
+        this.archived = ArrayListMultimap.create(archived);
+    }
+
+    public void consume(final UUID owner, final UUID shellUuid) {
+        final ShellState shell = this.get(owner, shellUuid);
+        if (shell != null && this.entries.remove(owner, shell)) {
+            this.setDirty();
+        }
+    }
+
+    public void archive(final UUID owner, final UUID shellUuid) {
+        final ShellState shell = this.get(owner, shellUuid);
+        if (shell != null && this.entries.remove(owner, shell)) {
+            this.archived.put(owner, shell);
+            this.setDirty();
+        }
+    }
+
+    public Collection<ShellState> getArchived(final UUID owner) {
+        return List.copyOf(this.archived.get(owner));
+    }
+
+    public boolean restore(final UUID owner, final UUID shellUuid, final PositionReference destination) {
+        if (this.get(owner, shellUuid) != null) {
+            return false;
+        }
+        final ShellState shell = this.archived.get(owner).stream()
+            .filter(state -> state.shellUUID().equals(shellUuid))
+            .findFirst().orElse(null);
+        if (shell == null) {
+            return false;
+        }
+
+        this.archived.remove(owner, shell);
+        this.entries.put(owner, new ShellState(shellUuid, destination, shell.playerData(), 100));
+        this.setDirty();
+        return true;
     }
 
     public void add(final UUID playerUuid, final ShellState shellState) {
@@ -58,7 +110,7 @@ public class ShellSavedData extends SavedData {
 
     public void updateShellCreationProgress(final UUID playerUuid, final UUID shellUuid, final int newShellCreationProgress) {
         final ShellState oldShellState = this.get(playerUuid, shellUuid);
-        if (oldShellState != null) {
+        if (oldShellState != null && oldShellState.shellCreationProgress() != newShellCreationProgress) {
             final ShellState newShellState = new ShellState(
                 oldShellState.shellUUID(),
                 oldShellState.shellForgePos(),
@@ -169,7 +221,7 @@ public class ShellSavedData extends SavedData {
         }
 
         final Path legacy = server.getWorldPath(LevelResource.DATA).resolve("player_shells.dat");
-        final ShellSavedData data = new ShellSavedData(ArrayListMultimap.create());
+        final ShellSavedData data = new ShellSavedData();
         if (Files.isRegularFile(legacy)) {
             try {
                 final CompoundTag root = NbtIo.readCompressed(legacy, NbtAccounter.unlimitedHeap());

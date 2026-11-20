@@ -1,6 +1,7 @@
 package com.ultramega.playershells.packet.c2s;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.utils.PositionReference;
 import com.ultramega.playershells.utils.ShellPlayer;
 
@@ -54,7 +55,7 @@ public record TransferPlayerPacket(PositionReference oldShellForgePos, PositionR
             || !(player instanceof ShellPlayer shellPlayer) || player.blockPosition().distSqr(oldShellForgePos.pos()) > 4
             || !(oldTargetLevel.getBlockEntity(oldShellForgePos.pos()) instanceof ShellForgeBlockEntity oldForge)
             || !(newTargetLevel.getChunkAt(newShellForgePos.pos()).getBlockEntity(newShellForgePos.pos()) instanceof ShellForgeBlockEntity newForge)
-            || oldForge == newForge) {
+            || oldForge == newForge || oldForge.getShellState() != ShellStates.CREATE) {
             return;
         }
 

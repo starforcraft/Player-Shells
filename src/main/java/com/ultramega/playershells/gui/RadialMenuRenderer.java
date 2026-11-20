@@ -97,7 +97,7 @@ public abstract class RadialMenuRenderer<T> {
             final int x = centerX + Math.round(Mth.cos(angle) * MIDDLE_DISTANCE);
             final int y = centerY + Math.round(Mth.sin(angle) * MIDDLE_DISTANCE);
             final int progress = this.getPlayerShellCreationProgress(entry);
-            final var state = ShellRenderer.extract(entity, 25, progress, 0x36bcb8, 15728880, progress != 100);
+            final var state = ShellRenderer.extract(entity, 205, progress, 0x36bcb8, 15728880, progress != 100);
             graphics.entity(state, 20, new Vector3f(0, state.boundingBoxHeight / 2f, 0),
                 new Quaternionf().rotateZ((float) Math.PI), null, x - 14, y - 20, x + 14, y + 20);
             if (progress != 100) {

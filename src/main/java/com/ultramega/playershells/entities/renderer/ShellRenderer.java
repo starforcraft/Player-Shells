@@ -11,6 +11,9 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 public class ShellRenderer extends AvatarRenderer<ShellEntity> {
+    // The rendered hat extends above the player's collision box.
+    private static final float HAT_TOP = (1.501F + 8.5F / 16.0F) * 0.9375F;
+
     private static ShellRenderer wide;
     private static ShellRenderer slim;
 
@@ -55,7 +58,7 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
     public void submit(final AvatarRenderState state, final PoseStack poseStack, final SubmitNodeCollector nodes, final CameraRenderState camera) {
         final State shell = (State) state;
         if (shell.scanActive) {
-            ShellScan.submit(poseStack.last().pose(), shell.boundingBoxHeight, shell.progress, shell.edgeColor,
+            ShellScan.submit(poseStack.last().pose(), HAT_TOP * shell.scale, shell.progress, shell.edgeColor,
                 () -> super.submit(state, poseStack, nodes, camera));
         } else {
             super.submit(state, poseStack, nodes, camera);

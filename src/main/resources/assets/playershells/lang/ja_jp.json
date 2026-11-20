@@ -39,5 +39,9 @@
   "death.playershells.transferred_to_shell_0": "それでも意識は生き続け、新たな肉体に宿る",
   "death.playershells.transferred_to_shell_1": "しかし、復讐を果たすため、新たな肉体を得て戻ってきた",
   "death.playershells.transferred_to_shell_2": "安心してください！新しい肉体を手に入れても、悪だくみは相変わらずさ",
-  "death.playershells.transferred_to_shell_3": "新しい肉体復活！残念ながら、脳はそのままだけどね"
+  "death.playershells.transferred_to_shell_3": "新しい肉体復活！残念ながら、脳はそのままだけどね",
+  "gui.playershells.shell_forge.confirm_exterminate": "処分を確定",
+  "gui.playershells.shell_forge.exterminate_warning": "処分は取り消せません",
+  "gui.playershells.shell_forge.recovering": "修復中",
+  "gui.playershells.shell_forge.status.recovering": "電力が回復しました。シェルを修復しています。"
 }

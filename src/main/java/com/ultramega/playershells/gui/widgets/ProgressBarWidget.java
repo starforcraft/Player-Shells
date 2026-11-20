@@ -39,7 +39,7 @@ public class ProgressBarWidget extends AbstractWidget {
         final int progress = this.progressSupplier.getAsInt();
 
         final int filledWidth = (int) ((progress / 100.0) * this.getWidth());
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, this.shellForge.getShellState() == ShellStates.EXTERMINATING ? RED_SPRITE : GREEN_SPRITE, 80, 16, 0, 0,
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, (this.shellForge.getShellState() == ShellStates.EXTERMINATING || this.shellForge.getShellState() == ShellStates.DECAYING) ? RED_SPRITE : GREEN_SPRITE, 80, 16, 0, 0,
             this.getX(), this.getY(), filledWidth, this.getHeight());
 
         final String progressText = progress + "%";
@@ -49,7 +49,8 @@ public class ProgressBarWidget extends AbstractWidget {
     }
 
     public void tick() {
-        this.visible = this.shellForge.getShellState() == ShellStates.CREATING || this.shellForge.getShellState() == ShellStates.EXTERMINATING;
+        final ShellStates state = this.shellForge.getShellState();
+        this.visible = state != ShellStates.CREATE && state != ShellStates.EXTERMINATE;
     }
 
     @Override

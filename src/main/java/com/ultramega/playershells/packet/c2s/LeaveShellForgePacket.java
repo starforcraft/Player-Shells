@@ -26,9 +26,10 @@ public record LeaveShellForgePacket(BlockPos shellForgePos) implements CustomPac
 
     public static void handle(final LeaveShellForgePacket data, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player().level().getBlockEntity(data.shellForgePos()) instanceof ShellForgeBlockEntity blockEntity) {
+            if (context.player().blockPosition().distSqr(data.shellForgePos()) <= 4
+                && context.player().level().getBlockEntity(data.shellForgePos()) instanceof ShellForgeBlockEntity blockEntity
+                && blockEntity.getPlayerState() != PlayerStates.NONE) {
                 blockEntity.setPlayerState(PlayerStates.GOING_OUT);
-                blockEntity.setChanged();
             }
         }).exceptionally(e -> null);
     }

@@ -39,5 +39,9 @@
   "death.playershells.transferred_to_shell_0": "Yet their spirit endures, reborn in another shell",
   "death.playershells.transferred_to_shell_1": "However, they have returned in a new shell to seek vengeance",
   "death.playershells.transferred_to_shell_2": "But don't worry, they've got a fresh shell and the same bad ideas",
-  "death.playershells.transferred_to_shell_3": "Respawning in a new shell - though, regrettably, the brain remains unchanged"
+  "death.playershells.transferred_to_shell_3": "Respawning in a new shell - though, regrettably, the brain remains unchanged",
+  "gui.playershells.shell_forge.confirm_exterminate": "Confirm",
+  "gui.playershells.shell_forge.exterminate_warning": "Extermination is final",
+  "gui.playershells.shell_forge.recovering": "Recovering",
+  "gui.playershells.shell_forge.status.recovering": "Power restored. Repairing shell."
 }

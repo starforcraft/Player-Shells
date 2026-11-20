@@ -87,43 +87,47 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     public static void serverTick(final Level level, final BlockPos pos, final BlockState state, final ShellForgeBlockEntity blockEntity) {
         blockEntity.updatePlayerStateAndOpened(state, pos);
 
-        blockEntity.drainEnergyPassive();
+        blockEntity.tickShell();
+    }
 
-        // Decay/Exterminating shell stuff
-        if (blockEntity.shellState == ShellStates.DECAYING || blockEntity.shellState == ShellStates.EXTERMINATING) {
-            if (blockEntity.shellPercentage <= 0) {
-                blockEntity.exterminateShell();
-                return;
+    private void tickShell() {
+        if (this.shellState == ShellStates.EXTERMINATE || this.shellState == ShellStates.DECAYING || this.shellState == ShellStates.RECOVERING) {
+            this.updateMaintenance();
+        }
+
+        switch (this.shellState) {
+            case CREATING, RECOVERING -> this.advanceShell(1, Config.SHELL_FORGE_CREATION_COOLDOWN.get());
+            case DECAYING -> this.advanceShell(-1, Config.SHELL_FORGE_DECAY_COOLDOWN.get());
+            case EXTERMINATING -> this.advanceShell(-1, 1);
+            default -> { }
+        }
+    }
+
+    private void advanceShell(final int step, final int cooldown) {
+        if (step > 0 && this.shellPercentage >= 100) {
+            this.setShellState(ShellStates.EXTERMINATE);
+            this.updateShellCreationProgressOnClient(100);
+            return;
+        }
+        if (++this.shellPercentageCooldownTick < cooldown && (step > 0 || this.shellPercentage > 0)) {
+            super.setChanged();
+            return;
+        }
+
+        this.shellPercentageCooldownTick = 0;
+        this.shellPercentage = Mth.clamp(this.shellPercentage + step, 0, 100);
+        if (this.shellPercentage == 0) {
+            if (this.level instanceof ServerLevel serverLevel) {
+                ShellSavedData.getShellData(serverLevel).archive(this.playerUuid, this.shellUuid);
             }
-            if (blockEntity.shellState == ShellStates.DECAYING && blockEntity.shellPercentageCooldownTick++ <= Config.SHELL_FORGE_DECAY_COOLDOWN.get()) {
-                blockEntity.setChanged();
-                return;
+            this.clearShell();
+        } else {
+            if (this.shellPercentage == 100) {
+                this.shellState = ShellStates.EXTERMINATE;
             }
-            blockEntity.shellPercentageCooldownTick = 0;
-            blockEntity.shellPercentage -= 1;
-            blockEntity.updateShellCreationProgressOnClient();
-            blockEntity.setChanged();
+            this.updateShellCreationProgressOnClient(this.shellPercentage);
+            this.setChanged();
         }
-
-        // Create shell stuff
-        if (blockEntity.shellState != ShellStates.CREATING) {
-            return;
-        }
-        if (blockEntity.shellPercentage == 100) {
-            blockEntity.shellState = ShellStates.EXTERMINATE;
-            blockEntity.setChanged();
-            return;
-        }
-
-        if (blockEntity.shellPercentageCooldownTick++ <= Config.SHELL_FORGE_CREATION_COOLDOWN.get()) {
-            blockEntity.setChanged();
-            return;
-        }
-
-        blockEntity.shellPercentageCooldownTick = 0;
-        blockEntity.shellPercentage += 1;
-        blockEntity.updateShellCreationProgressOnClient();
-        blockEntity.setChanged();
     }
 
     public void tickDoorAnimation(final boolean open) {
@@ -136,33 +140,44 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         }
     }
 
-    private void drainEnergyPassive() { //TODO: decying doesn't stop
-        if (this.shellState == ShellStates.EXTERMINATE) {
-            final int simulateExtract = this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get(), true);
-            if (simulateExtract != Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get()) {
-                this.shellState = ShellStates.DECAYING;
-                this.setChanged();
-            } else {
-                this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get(), false);
-                this.setChanged();
+    private void updateMaintenance() {
+        final int cost = Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get();
+        final boolean powered = cost == 0 || this.energyStorage.extractEnergy(cost, true) == cost;
+        if (powered && cost > 0) {
+            this.energyStorage.extractEnergy(cost, false);
+        }
+        final ShellStates state = !powered && Config.SHELL_FORGE_DECAY_ENABLED.get() ? ShellStates.DECAYING
+            : this.shellPercentage < 100 ? ShellStates.RECOVERING : ShellStates.EXTERMINATE;
+        if (state != this.shellState) {
+            this.setShellState(state);
+            if (this.shellPercentage == 100) {
+                this.updateShellCreationProgressOnClient(state == ShellStates.EXTERMINATE ? 100 : 99);
             }
         }
     }
 
-    private void updateShellCreationProgressOnClient() {
+    private void setShellState(final ShellStates state) {
+        this.shellState = state;
+        this.shellPercentageCooldownTick = 0;
+        this.setChanged();
+    }
+
+    private void updateShellCreationProgressOnClient(final int progress) {
         if (this.level instanceof ServerLevel serverLevel) {
-            ShellSavedData.getShellData(serverLevel).updateShellCreationProgress(this.playerUuid, this.shellUuid, this.shellPercentage);
+            ShellSavedData.getShellData(serverLevel).updateShellCreationProgress(this.playerUuid, this.shellUuid, progress);
         }
     }
 
     public boolean transferPlayerTo(final Player player, final Runnable afterTeleport) {
         //TODO decrease water level, remove mask on client
         if (this.shellState == ShellStates.EXTERMINATE && this.playerUuid.equals(player.getUUID())
-            && this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer) {
+            && this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer
+            && !hasPlayerInside(this.getBlockPos(), serverLevel)) {
             final ShellState shellState = ShellSavedData.getShellData(serverLevel).get(this.playerUuid, this.shellUuid);
             if (shellState != null && shellPlayer.playershells$applyData(shellState.playerData(), shellState.shellForgePos(), afterTeleport)) {
                 this.playerState = PlayerStates.TRANSFERRED;
-                this.exterminateShell();
+                ShellSavedData.getShellData(serverLevel).consume(this.playerUuid, this.shellUuid);
+                this.clearShell();
 
                 setValue(this.getBlockState(), this.level, this.getBlockPos(), new BoolProperty(OPEN, true));
                 return true;
@@ -176,6 +191,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.shellState = ShellStates.EXTERMINATE;
         this.playerState = PlayerStates.NONE;
         this.shellPercentage = 100;
+        this.shellPercentageCooldownTick = 0;
         if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
@@ -195,7 +211,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
         this.inventoryHandler.removeItem(0, SHELL_FORGE_DNA_AMOUNT.get());
         this.setPlayerUuid(playerUUID);
-        this.shellState = ShellStates.CREATING;
+        this.setShellState(ShellStates.CREATING);
         if (this.level instanceof ServerLevel serverLevel) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
@@ -205,14 +221,12 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.setChanged();
     }
 
-    public void exterminateShell() {
+    private void clearShell() {
         this.setPlayerUuid(EMPTY_UUID);
         this.shellPercentage = 0;
         this.shellState = ShellStates.CREATE;
         this.shellUuid = EMPTY_UUID;
-        if (this.level instanceof ServerLevel serverLevel) {
-            ShellSavedData.getShellData(serverLevel).validateShellData(serverLevel);
-        }
+        this.shellPercentageCooldownTick = 0;
         this.setChanged();
     }
 
@@ -256,27 +270,48 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             return;
         }
 
-        if (!isOpen(state) && (this.playerState == PlayerStates.GOING_IN || this.playerState == PlayerStates.TRANSFERRED)) {
-            setValue(state, this.level, pos, new BoolProperty(OPEN, true));
-        } else if (this.playerState == PlayerStates.GOING_IN) {
-            if (hasPlayerInside(pos, this.level)) {
-                this.playerState = PlayerStates.INSIDE;
-                this.setChanged();
+        final boolean occupied = hasPlayerInside(pos, this.level);
+        if (this.playerState == PlayerStates.GOING_IN) {
+            if (!isOpen(state)) {
+                setValue(state, this.level, pos, new BoolProperty(OPEN, true));
+            } else if (this.level.getNearestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 1, false) != null) {
+                this.setPlayerState(PlayerStates.INSIDE);
             }
-        } else if (!hasPlayerInside(pos, this.level)) {
-            this.playerState = PlayerStates.NONE;
-            this.setChanged();
-            setValue(state, this.level, pos, new BoolProperty(OPEN, false));
+        } else if (occupied && !isOpen(state) && (this.shellState == ShellStates.CREATE || this.playerState == PlayerStates.TRANSFERRED)) {
+            setValue(state, this.level, pos, new BoolProperty(OPEN, true));
+        } else if (!occupied) {
+            this.setPlayerState(PlayerStates.NONE);
+            if (isOpen(state)) {
+                setValue(state, this.level, pos, new BoolProperty(OPEN, false));
+            }
         }
     }
 
-    public void shellButtonPressed() {
-        if (this.shellState == ShellStates.CREATE) {
+    public void shellButtonPressed(final UUID confirmedShell) {
+        if (this.shellState == ShellStates.CREATE && confirmedShell.equals(EMPTY_UUID)) {
             this.createShell();
-        } else if (this.shellState == ShellStates.EXTERMINATE) {
-            this.shellState = ShellStates.EXTERMINATING;
-            this.setChanged();
+        } else if (this.shellState == ShellStates.EXTERMINATE && this.shellUuid.equals(confirmedShell)) {
+            this.setShellState(ShellStates.EXTERMINATING);
+            this.updateShellCreationProgressOnClient(99);
         }
+    }
+
+    public boolean restoreShell(final UUID owner, final UUID restoredShellUuid) {
+        if (!(this.level instanceof ServerLevel level) || this.shellState != ShellStates.CREATE || this.playerState != PlayerStates.NONE
+            || hasPlayerInside(this.getBlockPos(), level)) {
+            return false;
+        }
+
+        final ShellSavedData data = ShellSavedData.getShellData(level);
+        final PositionReference position = new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), level.dimension().identifier());
+        if (!data.restore(owner, restoredShellUuid, position)) {
+            return false;
+        }
+        this.playerUuid = owner;
+        this.shellUuid = restoredShellUuid;
+        this.shellPercentage = 100;
+        this.setShellState(ShellStates.EXTERMINATE);
+        return true;
     }
 
     @Override
@@ -341,7 +376,10 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     public void setPlayerState(final PlayerStates playerState) {
-        this.playerState = playerState;
+        if (this.playerState != playerState) {
+            this.playerState = playerState;
+            this.setChanged();
+        }
     }
 
     public PlayerStates getPlayerState() {
@@ -380,7 +418,8 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         CREATING,
         EXTERMINATE,
         EXTERMINATING,
-        DECAYING
+        DECAYING,
+        RECOVERING
     }
 
     public enum PlayerStates {

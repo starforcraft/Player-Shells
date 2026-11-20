@@ -28,6 +28,7 @@ import static com.ultramega.playershells.blocks.ShellForgeBlock.OPEN;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.movePlayerInside;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.movePlayerTo;
 import static com.ultramega.playershells.utils.MathUtils.isPlayerInFront;
+import static com.ultramega.playershells.utils.MathUtils.overlapsShellForge;
 
 public final class ShellForgeClient {
     private static boolean blockShellSelection;
@@ -63,13 +64,12 @@ public final class ShellForgeClient {
             return;
         }
 
-        if (!isPlayerInFront(pos, level, player.getUUID(), state.getValue(FACING))) {
-            return;
-        }
-        if (blockEntity.getPlayerState() == PlayerStates.GOING_IN || blockEntity.getPlayerState() == PlayerStates.INSIDE) {
-            movePlayerInside(player, pos, state.getValue(FACING));
-        } else if (blockEntity.getPlayerState() == PlayerStates.GOING_OUT) {
+        final PlayerStates playerState = blockEntity.getPlayerState();
+        if (playerState == PlayerStates.GOING_OUT && overlapsShellForge(player, pos)) {
             movePlayerTo(player, pos.relative(state.getValue(FACING)), 0);
+        } else if ((playerState == PlayerStates.GOING_IN || playerState == PlayerStates.INSIDE)
+            && isPlayerInFront(pos, level, player.getUUID(), state.getValue(FACING))) {
+            movePlayerInside(player, pos, state.getValue(FACING));
         }
     }
 

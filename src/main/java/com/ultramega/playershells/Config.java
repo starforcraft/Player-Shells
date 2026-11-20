@@ -12,12 +12,14 @@ public final class Config {
         .comment("Energy consumed by the Shell Forge to create a single Shell (must not exceed the energy capacity)")
         .defineInRange("shellForgeEnergyUsageCreation", 1_000_000, 1, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue SHELL_FORGE_ENERGY_USAGE_MAINTENANCE = BUILDER
-        .comment("Energy consumed by the Shell Forge per tick to maintain an alive Shell (must not exceed the energy capacity)"
-            + "\nIf you want to disable decaying, simply set this value to 0")
+        .comment("Energy consumed by the Shell Forge per tick to maintain an alive Shell (must not exceed the energy capacity). Set to 0 for free maintenance.")
         .defineInRange("shellForgeEnergyUsageMaintenance", 1_000, 0, Integer.MAX_VALUE);
     public static final ModConfigSpec.IntValue SHELL_FORGE_CREATION_COOLDOWN = BUILDER
         .comment("Time required to progress by 1% during Shell creation (in ticks)")
         .defineInRange("shellForgeCreationCooldown", 20, 1, Integer.MAX_VALUE);
+    public static final ModConfigSpec.BooleanValue SHELL_FORGE_DECAY_ENABLED = BUILDER
+        .comment("Whether shells decay when the Shell Forge runs out of maintenance power")
+        .define("shellForgeDecayEnabled", true);
     public static final ModConfigSpec.IntValue SHELL_FORGE_DECAY_COOLDOWN = BUILDER
         .comment("Time required to progress by 1% during Shell decay (in ticks)")
         .defineInRange("shellForgeDecayCooldown", 10, 1, Integer.MAX_VALUE);

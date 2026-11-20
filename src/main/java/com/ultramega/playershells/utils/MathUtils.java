@@ -32,6 +32,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class MathUtils {
@@ -118,10 +119,11 @@ public final class MathUtils {
     }
 
     public static boolean hasPlayerInside(final BlockPos pos, final Level level) {
-        final double x = pos.getX() + 0.5;
-        final double y = pos.getY() + 0.5;
-        final double z = pos.getZ() + 0.5;
-        return level.getNearestPlayer(x, y, z, 1, false) != null;
+        return level.players().stream().anyMatch(player -> player.isAlive() && !player.isSpectator() && overlapsShellForge(player, pos));
+    }
+
+    public static boolean overlapsShellForge(final Player player, final BlockPos pos) {
+        return player.getBoundingBox().intersects(new AABB(pos).expandTowards(0, 1, 0));
     }
 
     public static boolean isPlayerInFront(final BlockPos pos, final Level level, final UUID playerUuid, final Direction facing) {

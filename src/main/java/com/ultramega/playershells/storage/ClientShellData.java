@@ -15,8 +15,13 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
 
 public class ClientShellData {
     public static final ClientShellData INSTANCE = new ClientShellData();
@@ -54,11 +59,35 @@ public class ClientShellData {
             final ShellEntity entity = new ShellEntity(level, new GameProfile(owner, ""));
             final var tag = shell.playerData().copy();
             tag.remove(Entity.TAG_UUID);
-            entity.load(TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), tag));
+            final var input = TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), tag);
+            entity.load(input);
+            loadPreviewArmor(entity, input);
             entity.setPose(Pose.STANDING);
             entity.setHealth(Math.max(entity.getHealth(), 0.01f));
             return entity;
         });
+    }
+
+    private static void loadPreviewArmor(final ShellEntity preview, final ValueInput input) {
+        final AttributeInstance armor = preview.getAttribute(Attributes.ARMOR);
+        if (armor == null) {
+            return;
+        }
+
+        // Client previews skip the server's attribute load and equipment tick.
+        input.read(LivingEntity.TAG_ATTRIBUTES, AttributeInstance.Packed.LIST_CODEC).ifPresent(attributes ->
+            attributes.stream().filter(attribute -> attribute.attribute().equals(Attributes.ARMOR)).findFirst().ifPresent(armor::apply));
+        for (final EquipmentSlot slot : EquipmentSlot.VALUES) {
+            final var stack = preview.getItemBySlot(slot);
+            if (!stack.isEmpty() && !stack.isBroken()) {
+                stack.forEachModifier(slot, (attribute, modifier) -> {
+                    if (attribute.equals(Attributes.ARMOR)) {
+                        armor.removeModifier(modifier.id());
+                        armor.addTransientModifier(modifier);
+                    }
+                });
+            }
+        }
     }
 
     public Collection<ShellState> getAll(final UUID uuid) {

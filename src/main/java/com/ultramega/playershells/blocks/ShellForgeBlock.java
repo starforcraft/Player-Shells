@@ -133,7 +133,14 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
         }
 
         final boolean hasShellInside = shellForge.getShellState() != ShellStates.CREATE;
-        if (!level.isClientSide()) {
+        final boolean exiting = !hasShellInside
+            && (shellForge.getPlayerState() == PlayerStates.TRANSFERRED || shellForge.getPlayerState() == PlayerStates.NONE)
+            && (player.blockPosition().equals(shellForgePos) || player.blockPosition().equals(shellForgePos.above()));
+        if (exiting) {
+            if (!level.isClientSide()) {
+                shellForge.setPlayerState(PlayerStates.GOING_OUT);
+            }
+        } else if (!level.isClientSide()) {
             // Open menu if there's a shell or SHIFT is held; otherwise start going in
             if (hasShellInside || player.isShiftKeyDown()) {
                 player.openMenu(shellForge, shellForgePos);
@@ -142,7 +149,6 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
 
             // Shift wasn't pressed, go in or out
             shellForge.setPlayerState(PlayerStates.GOING_IN);
-            shellForge.setChanged();
             return true;
         } else if (!hasShellInside && !player.isShiftKeyDown()) {
             ShellForgeClient.onUse(player, level, shellForgePos, shellForgeState);

@@ -67,7 +67,7 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
             final var entity = ClientShellData.INSTANCE.getPreview(level, forge.getPlayerUuid(), forge.getShellUuid());
             if (entity != null) {
                 entity.setPos(forge.getBlockPos().getCenter().add(0, -0.4375, 0));
-                final boolean creating = shellState == ShellStates.CREATING;
+                final boolean creating = shellState == ShellStates.CREATING || shellState == ShellStates.RECOVERING;
                 final boolean scanActive = creating || state.exterminating || shellState == ShellStates.DECAYING;
                 final int edgeColor = creating ? 0x36bcb8 : 0x353535;
                 state.shell = ShellRenderer.extract(entity, yawForDirection(state.facing), forge.getShellPercentage(), edgeColor,
