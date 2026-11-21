@@ -1,7 +1,7 @@
 package com.ultramega.playershells.gui.widgets;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 
 import java.util.function.IntSupplier;
 
@@ -39,8 +39,8 @@ public class ProgressBarWidget extends AbstractWidget {
         final int progress = this.progressSupplier.getAsInt();
 
         final int filledWidth = (int) ((progress / 100.0) * this.getWidth());
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, (this.shellForge.getShellState() == ShellStates.EXTERMINATING || this.shellForge.getShellState() == ShellStates.DECAYING) ? RED_SPRITE : GREEN_SPRITE, 80, 16, 0, 0,
-            this.getX(), this.getY(), filledWidth, this.getHeight());
+        final boolean isDying = this.shellForge.getShellState() == ShellStates.EXTERMINATING || this.shellForge.getShellState() == ShellStates.DECAYING;
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, isDying ? RED_SPRITE : GREEN_SPRITE, 80, 16, 0, 0, this.getX(), this.getY(), filledWidth, this.getHeight());
 
         final String progressText = progress + "%";
         final int x = this.getX() + (this.getWidth() - mc.font.width(progressText)) / 2;

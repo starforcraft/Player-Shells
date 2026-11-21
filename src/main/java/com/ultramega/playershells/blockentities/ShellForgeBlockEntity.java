@@ -51,9 +51,12 @@ import static com.ultramega.playershells.blocks.ShellForgeBlock.isOpen;
 import static com.ultramega.playershells.blocks.ShellForgeBlock.setValue;
 import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
 import static com.ultramega.playershells.utils.MathUtils.hasPlayerInside;
+import static com.ultramega.playershells.utils.MathUtils.smoothstep01;
 
 public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, Nameable {
     private static final float OPEN_SPEED = 0.12f;
+    private static final int TRANSFER_DRAIN_TICKS = 34;
+    private static final int MASK_FIT_TICKS = 14;
 
     public final MachineInventory inventoryHandler = new MachineInventory(1) {
         @Override
@@ -75,9 +78,17 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     private ShellStates shellState = ShellStates.CREATE;
     private int shellPercentage;
     private int shellPercentageCooldownTick;
+    private long lastTransferTick = -1L;
 
     private float animProgress;
     private float animPrevProgress;
+    private float fluidFill = -1f;
+    private float previousFluidFill;
+    private long observedTransferTick = -1L;
+    private int drainTicks = TRANSFER_DRAIN_TICKS;
+    private int previousDrainTicks = TRANSFER_DRAIN_TICKS;
+    private int maskFitTicks = MASK_FIT_TICKS;
+    private int previousMaskFitTicks = MASK_FIT_TICKS;
 
     public ShellForgeBlockEntity(final BlockPos pos,
                                  final BlockState blockState) {
@@ -140,6 +151,62 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         }
     }
 
+    public boolean tickChamberAnimation(final boolean waitingForArrivalCamera) {
+        this.previousMaskFitTicks = this.maskFitTicks;
+        this.maskFitTicks = Math.min(this.maskFitTicks + 1, MASK_FIT_TICKS);
+
+        final float targetFill = this.targetFluidFill();
+        this.previousFluidFill = this.fluidFill < 0f ? targetFill : this.fluidFill;
+        this.fluidFill = Math.abs(this.previousFluidFill - targetFill) < 0.001f ? targetFill
+            : Mth.lerp(0.2f, this.previousFluidFill, targetFill);
+
+        final boolean newTransfer = this.observedTransferTick != this.lastTransferTick;
+        if (newTransfer) {
+            this.observedTransferTick = this.lastTransferTick;
+            // A client that starts tracking an old transfer should see an empty chamber.
+            this.drainTicks = this.lastTransferTick < 0L || this.level == null ? TRANSFER_DRAIN_TICKS
+                : (int) Math.clamp(this.level.getGameTime() - this.lastTransferTick, 0L, TRANSFER_DRAIN_TICKS);
+        }
+        final boolean holdDrain = waitingForArrivalCamera && this.playerState == PlayerStates.TRANSFERRED && this.lastTransferTick >= 0L;
+        if (holdDrain) {
+            this.drainTicks = 0;
+        }
+        this.previousDrainTicks = this.drainTicks;
+        if (holdDrain || this.drainTicks >= TRANSFER_DRAIN_TICKS) {
+            return false;
+        }
+        final boolean releaseStarted = newTransfer || this.drainTicks == 0;
+        this.drainTicks++;
+        return releaseStarted;
+    }
+
+    private float targetFluidFill() {
+        return switch (this.shellState) {
+            case CREATING, RECOVERING, DECAYING -> Mth.clamp(this.shellPercentage / 100f, 0f, 1f);
+            case EXTERMINATE -> 1f;
+            default -> 0f;
+        };
+    }
+
+    public float getChamberFill(final float partialTick) {
+        if (this.shellState == ShellStates.CREATE && this.lastTransferTick >= 0L) {
+            return 1f - smoothstep01(this.getDrainProgress(partialTick));
+        }
+        return this.fluidFill < 0f ? this.targetFluidFill() : Mth.lerp(partialTick, this.previousFluidFill, this.fluidFill);
+    }
+
+    public float getDrainProgress(final float partialTick) {
+        return this.shellState == ShellStates.CREATE && this.lastTransferTick >= 0L
+            ? Mth.lerp(partialTick, (float) this.previousDrainTicks, this.drainTicks) / TRANSFER_DRAIN_TICKS
+            : 1f;
+    }
+
+    public float getMaskSeparation(final float partialTick) {
+        return this.shellState == ShellStates.EXTERMINATE
+            ? 1f - Mth.lerp(partialTick, (float) this.previousMaskFitTicks, this.maskFitTicks) / MASK_FIT_TICKS
+            : 1f;
+    }
+
     private void updateMaintenance() {
         final int cost = Config.SHELL_FORGE_ENERGY_USAGE_MAINTENANCE.get();
         final boolean powered = cost == 0 || this.energyStorage.extractEnergy(cost, true) == cost;
@@ -169,13 +236,13 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     public boolean transferPlayerTo(final Player player, final Runnable afterTeleport) {
-        //TODO decrease water level, remove mask on client
         if (this.shellState == ShellStates.EXTERMINATE && this.playerUuid.equals(player.getUUID())
             && this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer shellPlayer
             && !hasPlayerInside(this.getBlockPos(), serverLevel)) {
             final ShellState shellState = ShellSavedData.getShellData(serverLevel).get(this.playerUuid, this.shellUuid);
             if (shellState != null && shellPlayer.playershells$applyData(shellState.playerData(), shellState.shellForgePos(), afterTeleport)) {
                 this.playerState = PlayerStates.TRANSFERRED;
+                this.lastTransferTick = serverLevel.getGameTime();
                 ShellSavedData.getShellData(serverLevel).consume(this.playerUuid, this.shellUuid);
                 this.clearShell();
 
@@ -192,6 +259,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.playerState = PlayerStates.NONE;
         this.shellPercentage = 100;
         this.shellPercentageCooldownTick = 0;
+        this.lastTransferTick = -1L;
         if (this.level instanceof ServerLevel serverLevel && player instanceof ShellPlayer) {
             this.shellUuid = UUID.randomUUID();
             ShellSavedData.getShellData(serverLevel).add(this.playerUuid, new ShellState(
@@ -210,6 +278,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
         this.inventoryHandler.removeItem(0, SHELL_FORGE_DNA_AMOUNT.get());
+        this.lastTransferTick = -1L;
         this.setPlayerUuid(playerUUID);
         this.setShellState(ShellStates.CREATING);
         if (this.level instanceof ServerLevel serverLevel) {
@@ -310,6 +379,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.playerUuid = owner;
         this.shellUuid = restoredShellUuid;
         this.shellPercentage = 100;
+        this.lastTransferTick = -1L;
         this.setShellState(ShellStates.EXTERMINATE);
         return true;
     }
@@ -317,6 +387,8 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     @Override
     protected void loadAdditional(final ValueInput input) {
         super.loadAdditional(input);
+        final ShellStates oldShellState = this.shellState;
+        final UUID oldShellUuid = this.shellUuid;
         this.inventoryHandler.load(input.childOrEmpty("inv"));
         this.energyStorage.set(input.getIntOr("energy", 0));
         this.playerUuid = input.read("playerUuid", UUIDUtil.CODEC).orElse(EMPTY_UUID);
@@ -325,6 +397,16 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         this.shellState = ShellStates.values()[Mth.clamp(input.getIntOr("shellState", 0), 0, ShellStates.values().length - 1)];
         this.shellPercentage = input.getIntOr("shellPercentage", 0);
         this.shellPercentageCooldownTick = input.getIntOr("shellPercentageCooldownTick", 0);
+        this.lastTransferTick = input.getLongOr("lastTransferTick", -1L);
+        if (this.level != null && this.level.isClientSide()) {
+            if (this.shellState != ShellStates.EXTERMINATE || !this.shellUuid.equals(oldShellUuid)) {
+                this.previousMaskFitTicks = MASK_FIT_TICKS;
+                this.maskFitTicks = MASK_FIT_TICKS;
+            } else if (oldShellState == ShellStates.CREATING || oldShellState == ShellStates.RECOVERING) {
+                this.previousMaskFitTicks = 0;
+                this.maskFitTicks = 0;
+            }
+        }
     }
 
     @Override
@@ -338,6 +420,9 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         output.putInt("shellState", this.shellState.ordinal());
         output.putInt("shellPercentage", this.shellPercentage);
         output.putInt("shellPercentageCooldownTick", this.shellPercentageCooldownTick);
+        if (this.lastTransferTick >= 0L) {
+            output.putLong("lastTransferTick", this.lastTransferTick);
+        }
     }
 
     @Override

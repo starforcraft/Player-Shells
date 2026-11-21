@@ -1,7 +1,7 @@
 package com.ultramega.playershells.packet.c2s;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;

@@ -1,7 +1,7 @@
 package com.ultramega.playershells.mixin;
 
-import com.ultramega.playershells.entities.renderer.ShellRenderer.State;
 import com.ultramega.playershells.entities.renderer.ShellRenderer;
+import com.ultramega.playershells.entities.renderer.ShellRenderer.State;
 
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;

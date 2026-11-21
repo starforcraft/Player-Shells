@@ -1,8 +1,8 @@
 package com.ultramega.playershells.events;
 
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.gui.ShellSelectionOverlay;
 import com.ultramega.playershells.packet.c2s.LeaveShellForgePacket;
 import com.ultramega.playershells.packet.c2s.TransferPlayerPacket;
@@ -11,6 +11,8 @@ import com.ultramega.playershells.registry.ModSoundEvents;
 import com.ultramega.playershells.utils.CameraHandler;
 import com.ultramega.playershells.utils.PositionReference;
 import com.ultramega.playershells.utils.SoundHandler;
+
+import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -32,6 +34,8 @@ import static com.ultramega.playershells.utils.MathUtils.overlapsShellForge;
 
 public final class ShellForgeClient {
     private static boolean blockShellSelection;
+    @Nullable
+    private static BlockPos entryForge;
 
     private ShellForgeClient() {
     }
@@ -39,6 +43,7 @@ public final class ShellForgeClient {
     public static void onUse(final Player player, final Level level, final BlockPos pos, final BlockState state) {
         final Minecraft mc = Minecraft.getInstance();
         if (player == mc.player) {
+            entryForge = pos.immutable();
             openShellSelection(player, level, pos, state);
             mc.options.keyUse.setDown(false);
         }
@@ -46,28 +51,31 @@ public final class ShellForgeClient {
 
     public static void clearSelection() {
         blockShellSelection = false;
+        entryForge = null;
         ShellSelectionOverlay.INSTANCE.close(false);
     }
 
     public static void clientTick(final Level level, final BlockPos pos, final BlockState state, final ShellForgeBlockEntity blockEntity) {
         blockEntity.tickDoorAnimation(state.getValue(OPEN));
+        final Player player = Minecraft.getInstance().player;
+        final boolean cameraApproaching = CameraHandler.isMovingTo(level.dimension().identifier(), pos);
+        final boolean releaseStarted = blockEntity.tickChamberAnimation(cameraApproaching && player != null && overlapsShellForge(player, pos));
+        if (releaseStarted && !cameraApproaching) {
+            level.playLocalSound(pos.getX() + 0.5, pos.getY() + 1.6, pos.getZ() + 0.5, ModSoundEvents.MASK_RELEASE.get(),
+                SoundSource.BLOCKS, 0.75f, 1f, false);
+        }
         if (blockEntity.getShellState() == ShellStates.EXTERMINATING) {
-            if (level.getRandom().nextDouble() < 0.1) {
-                SoundHandler.startBlockSound(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, 1.5F, 1.0F, level.getRandom(), pos);
-            }
-        } else {
-            SoundHandler.stopAllBlockSounds(pos);
+            SoundHandler.playExtermination(blockEntity, level.getRandom());
         }
 
-        final Player player = Minecraft.getInstance().player;
-        if (player == null || !state.getValue(OPEN)) {
+        if (player == null || !state.getValue(OPEN) || CameraHandler.isCameraOutsideOfPlayer()) {
             return;
         }
 
         final PlayerStates playerState = blockEntity.getPlayerState();
         if (playerState == PlayerStates.GOING_OUT && overlapsShellForge(player, pos)) {
             movePlayerTo(player, pos.relative(state.getValue(FACING)), 0);
-        } else if ((playerState == PlayerStates.GOING_IN || playerState == PlayerStates.INSIDE)
+        } else if (pos.equals(entryForge) && (playerState == PlayerStates.GOING_IN || playerState == PlayerStates.INSIDE)
             && isPlayerInFront(pos, level, player.getUUID(), state.getValue(FACING))) {
             movePlayerInside(player, pos, state.getValue(FACING));
         }
@@ -96,21 +104,21 @@ public final class ShellForgeClient {
         final PositionReference thisShellForgePosReference = new PositionReference(thisShellForgePos, thisFacing, level.dimension().identifier());
 
         ShellSelectionOverlay.INSTANCE.open(player, (shellEntry) -> {
-            // TODO: slowly build up green water from below and add mask before playing the animation
-            if (shellEntry.shellForgePos().isEmpty()) {
+            final PositionReference destination = shellEntry.shellForgePos().orElse(null);
+            if (destination == null) {
                 return;
             }
 
+            entryForge = null;
             ClientPacketDistributor.sendToServer(new ValidateShellForgePacket());
 
             // Play camera animation
-            final BlockPos newShellForgePos = shellEntry.shellForgePos().get().pos().immutable();
-            final Direction newShellForgeFacing = shellEntry.shellForgePos().get().facing();
-            CameraHandler.setMovingAnimation(thisShellForgePos.above(), thisFacing, newShellForgePos.above(), newShellForgeFacing, () -> {
-                ClientPacketDistributor.sendToServer(new TransferPlayerPacket(thisShellForgePosReference, shellEntry.shellForgePos().get()));
+            CameraHandler.setMovingAnimation(thisShellForgePos.above(), thisFacing, destination, () -> {
+                ClientPacketDistributor.sendToServer(new TransferPlayerPacket(thisShellForgePosReference, destination));
             });
         }, () -> {
             blockShellSelection = true;
+            entryForge = null;
             ClientPacketDistributor.sendToServer(new LeaveShellForgePacket(thisShellForgePos));
         });
     }

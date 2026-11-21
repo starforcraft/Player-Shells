@@ -4,5 +4,11 @@
       "playershells:flamethrower"
     ],
     "subtitle": "subtitles.playershells.flamethrower"
+  },
+  "mask_release": {
+    "sounds": [
+      "playershells:mask_release"
+    ],
+    "subtitle": "subtitles.playershells.mask_release"
   }
 }

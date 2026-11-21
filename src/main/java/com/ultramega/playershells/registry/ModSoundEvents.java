@@ -13,6 +13,8 @@ public final class ModSoundEvents {
 
     public static final DeferredHolder<SoundEvent, SoundEvent> FLAMETHROWER = SOUND_EVENTS.register("flamethrower", () ->
         SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MODID, "flamethrower")));
+    public static final DeferredHolder<SoundEvent, SoundEvent> MASK_RELEASE = SOUND_EVENTS.register("mask_release", () ->
+        SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MODID, "mask_release")));
 
     private ModSoundEvents() {
     }

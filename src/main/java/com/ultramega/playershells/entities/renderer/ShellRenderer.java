@@ -19,6 +19,7 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
 
     public ShellRenderer(final Context context, final boolean useSlimModel) {
         super(context, useSlimModel);
+        this.addLayer(new ShellMaskLayer(this));
     }
 
     public static void reload(final Context context) {
@@ -31,7 +32,7 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
     }
 
     public static State extract(final ShellEntity shell, final float yaw, final int progress, final int edgeColor, final int light,
-                                final boolean scanActive) {
+                                final boolean scanActive, final float maskSeparation) {
         shell.setYRot(yaw);
         shell.yBodyRot = yaw;
         shell.yBodyRotO = yaw;
@@ -42,6 +43,7 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
         state.progress = progress;
         state.edgeColor = edgeColor;
         state.scanActive = scanActive;
+        state.maskSeparation = maskSeparation;
         state.lightCoords = light;
         state.shadowPieces.clear();
         state.outlineColor = 0;
@@ -71,6 +73,7 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
     }
 
     public static class State extends AvatarRenderState {
+        public float maskSeparation = 1f;
         private int progress;
         private int edgeColor;
         private boolean scanActive;

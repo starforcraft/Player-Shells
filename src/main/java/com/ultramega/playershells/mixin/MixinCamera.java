@@ -1,7 +1,7 @@
 package com.ultramega.playershells.mixin;
 
-import com.ultramega.playershells.utils.CameraHandler;
 import com.ultramega.playershells.utils.CameraAccess;
+import com.ultramega.playershells.utils.CameraHandler;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;

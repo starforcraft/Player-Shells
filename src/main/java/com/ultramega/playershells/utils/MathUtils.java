@@ -3,8 +3,8 @@ package com.ultramega.playershells.utils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -141,7 +141,7 @@ public final class MathUtils {
         final double dz = player.getZ() - z;
 
         final double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (length < 1e-6) {
+        if (length < 1e-6 || length > 3.0) {
             return false;
         }
         final double ndx = dx / length;

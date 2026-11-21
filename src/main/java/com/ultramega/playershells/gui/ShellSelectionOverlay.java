@@ -3,10 +3,10 @@ package com.ultramega.playershells.gui;
 import com.ultramega.playershells.entities.ShellEntity;
 import com.ultramega.playershells.storage.ClientShellData;
 import com.ultramega.playershells.storage.ShellState;
+import com.ultramega.playershells.utils.ShellBundle;
 import com.ultramega.playershells.utils.ShellBundle.InventoryEntry;
 import com.ultramega.playershells.utils.ShellBundle.ShellEntry;
 import com.ultramega.playershells.utils.ShellBundle.StatEntry;
-import com.ultramega.playershells.utils.ShellBundle;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +40,9 @@ import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
 
 public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellEntry> implements GuiLayer {
     public static final ShellSelectionOverlay INSTANCE = new ShellSelectionOverlay();
+    private static final int SHELLS_PER_PAGE = 6;
+    private static final int PAGE_ARROW_OFFSET = 26;
+    private static final int PAGE_ARROW_HALF_SIZE = 7;
     private static final Identifier ARMOR_EMPTY_SPRITE = Identifier.withDefaultNamespace("hud/armor_empty");
     private static final Identifier ARMOR_FULL_SPRITE = Identifier.withDefaultNamespace("hud/armor_full");
     private static final Identifier ARMOR_HALF_SPRITE = Identifier.withDefaultNamespace("hud/armor_half");
@@ -60,17 +63,18 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     private Runnable onClose;
     @Nullable
     private ShellBundle displayedShell;
+    private int pageIndex;
 
     @Override
     public void render(final GuiGraphicsExtractor graphics, final DeltaTracker deltaTracker) {
         // TODO: Add eye view into the top right corner, below coordinates, dimension and gamemode
         //  also add curios compat to the left side of the inventory
-        //  also implement pagination
         if (!this.isOpened()) {
             return;
         }
 
         super.render(graphics);
+        this.renderPageControls(graphics);
 
         @Nullable final ShellEntry shellEntry = super.lastIndexUnderMouse != -1 ? this.getEntries().get(super.lastIndexUnderMouse) : null;
 
@@ -90,6 +94,45 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
 
         // Bottom left
         this.renderStats(graphics, pose, centerX, centerY, invWidth, invHeight, shellEntry);
+    }
+
+    private void renderPageControls(final GuiGraphicsExtractor graphics) {
+        final int pageCount = this.getPageCount();
+        if (pageCount <= 1) {
+            return;
+        }
+        final var font = Minecraft.getInstance().font;
+        final int centerX = graphics.guiWidth() / 2;
+        final int centerY = graphics.guiHeight() / 2;
+        final MousePos mouse = getMousePos();
+        final int hoveredArrow = pageArrowAt(getDiffFromCenter(mouse.x(), mouse.y()));
+        final Component counter = Component.literal((this.pageIndex + 1) + "/" + pageCount);
+        final int counterHalfWidth = (font.width(counter) + 1) / 2 + 4;
+        graphics.fill(centerX - counterHalfWidth, centerY - PAGE_ARROW_HALF_SIZE,
+            centerX + counterHalfWidth, centerY + PAGE_ARROW_HALF_SIZE, 0xCC343434);
+        graphics.centeredText(font, counter, centerX, centerY - font.lineHeight / 2, 0xCCFFFFFF);
+        this.renderPageArrow(graphics, centerX, centerY, -1, this.pageIndex > 0, hoveredArrow == -1);
+        this.renderPageArrow(graphics, centerX, centerY, 1, this.pageIndex + 1 < pageCount, hoveredArrow == 1);
+    }
+
+    private void renderPageArrow(final GuiGraphicsExtractor graphics, final int centerX, final int centerY, final int direction,
+                                 final boolean enabled, final boolean hovered) {
+        final int x = centerX + direction * PAGE_ARROW_OFFSET;
+        final int size = PAGE_ARROW_HALF_SIZE;
+        if (enabled && hovered) {
+            graphics.fill(x - size, centerY - size, x + size, centerY + size, 0x994D4D4D);
+        }
+        final var font = Minecraft.getInstance().font;
+        graphics.centeredText(font, Component.literal(direction < 0 ? "‹" : "›"), x, centerY - font.lineHeight / 2,
+            enabled ? 0xCCFFFFFF : 0x66888888);
+    }
+
+    private static int pageArrowAt(final MousePos mouse) {
+        final double x = mouse.x();
+        if (Math.abs(mouse.y()) >= PAGE_ARROW_HALF_SIZE || Math.abs(Math.abs(x) - PAGE_ARROW_OFFSET) >= PAGE_ARROW_HALF_SIZE) {
+            return 0;
+        }
+        return x < 0 ? -1 : 1;
     }
 
     private void renderInventory(final GuiGraphicsExtractor graphics,
@@ -178,7 +221,33 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
 
     @Override
     public List<ShellBundle.ShellEntry> getEntries() {
-        return this.displayedShell == null ? List.of() : this.displayedShell.getEntries();
+        if (this.displayedShell == null) {
+            return List.of();
+        }
+        final List<ShellEntry> entries = this.displayedShell.getEntries();
+        final int first = this.pageIndex * SHELLS_PER_PAGE;
+        return entries.subList(first, Math.min(first + SHELLS_PER_PAGE, entries.size()));
+    }
+
+    private int getPageCount() {
+        return this.displayedShell == null ? 0 : Math.ceilDiv(this.displayedShell.getEntries().size(), SHELLS_PER_PAGE);
+    }
+
+    public boolean mouseScroll(final int scroll) {
+        if (this.getPageCount() <= 1 || scroll == 0) {
+            return false;
+        }
+        this.changePage(-Integer.signum(scroll));
+        return true;
+    }
+
+    private void changePage(final int direction) {
+        final int next = Mth.clamp(this.pageIndex + direction, 0, this.getPageCount() - 1);
+        if (next != this.pageIndex) {
+            this.pageIndex = next;
+            this.clearState();
+            Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+        }
     }
 
     @Nullable
@@ -229,20 +298,28 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
             this.cancel();
+            return;
         }
-
-        final MousePos diffFromCenter = getDiffFromCenter(mouseX, mouseY);
-        final double distanceFromCenter = Mth.length(diffFromCenter.x(), diffFromCenter.y());
-        if (distanceFromCenter < 30 || distanceFromCenter > RadialMenuRenderer.OUTER + 30) {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             return;
         }
 
-        final int selectionIndex = this.getElementUnderMouse();
-        if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && selectionIndex >= 0 && selectionIndex < this.getEntries().size()) {
+        final MousePos diffFromCenter = getDiffFromCenter(mouseX, mouseY);
+        final int pageDirection = pageArrowAt(diffFromCenter);
+        if (this.getPageCount() > 1 && pageDirection != 0) {
+            this.changePage(pageDirection);
+            return;
+        }
+        if (Mth.length(diffFromCenter.x(), diffFromCenter.y()) > OUTER + 30) {
+            return;
+        }
+        final int selectionIndex = this.getElementUnderMouse(diffFromCenter);
+        final List<ShellEntry> entries = this.getEntries();
+        if (selectionIndex >= 0 && selectionIndex < entries.size()) {
             Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 
             if (this.onSelectShell != null) {
-                final ShellEntry shellEntry = this.getEntries().get(selectionIndex);
+                final ShellEntry shellEntry = entries.get(selectionIndex);
                 if (this.getPlayerShellCreationProgress(shellEntry) != 100) {
                     return;
                 }
@@ -385,6 +462,8 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             shellEntries.add(new ShellEntry("", Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty()));
         }
         this.displayedShell = new ShellBundle(player.getUUID(), shellEntries);
+        this.pageIndex = 0;
+        this.clearState();
 
         this.onSelectShell = onSelectShell;
         this.onClose = onClose;
@@ -407,6 +486,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             Minecraft.getInstance().mouseHandler.grabMouse();
         }
         this.displayedShell = null;
+        this.pageIndex = 0;
         this.onSelectShell = null;
         this.onClose = null;
         this.clearState();

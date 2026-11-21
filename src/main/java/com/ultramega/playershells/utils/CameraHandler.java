@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
@@ -27,7 +28,7 @@ public final class CameraHandler {
     @Nullable
     private static Vec3 endPosition;
     @Nullable
-    private static Direction endFacing;
+    private static PositionReference endForge;
 
     @Nullable
     private static Runnable onFinished;
@@ -83,14 +84,13 @@ public final class CameraHandler {
 
     public static void setMovingAnimation(@Nullable final BlockPos startPosition,
                                           @Nullable final Direction startFacing,
-                                          final BlockPos endPosition,
-                                          final Direction endFacing,
+                                          final PositionReference endForge,
                                           final Runnable onFinished) {
         resetPosition();
         CameraHandler.startPosition = startPosition != null ? startPosition.getCenter().add(0, 0.2, 0) : null;
         CameraHandler.startFacing = startFacing;
-        CameraHandler.endPosition = endPosition.getCenter().add(0, 0.2, 0);
-        CameraHandler.endFacing = endFacing;
+        CameraHandler.endPosition = endForge.pos().above().getCenter().add(0, 0.2, 0);
+        CameraHandler.endForge = endForge;
         CameraHandler.onFinished = onFinished;
     }
 
@@ -98,7 +98,7 @@ public final class CameraHandler {
         startPosition = null;
         startFacing = null;
         endPosition = null;
-        endFacing = null;
+        endForge = null;
         onFinished = null;
         animating = false;
         reversing = false;
@@ -111,11 +111,15 @@ public final class CameraHandler {
     }
 
     public static boolean isCameraOutsideOfPlayer() {
-        return (startPosition != null && startFacing != null) || (endPosition != null && endFacing != null);
+        return endForge != null;
+    }
+
+    public static boolean isMovingTo(final Identifier dimension, final BlockPos forgePos) {
+        return endForge != null && endForge.dimension().equals(dimension) && endForge.pos().equals(forgePos);
     }
 
     private static void beginAnimation(final Camera camera, final long now) {
-        if (endPosition == null || endFacing == null) {
+        if (endPosition == null || endForge == null) {
             return;
         }
         animating = true;
@@ -136,6 +140,7 @@ public final class CameraHandler {
             p2Up = p1Forward.add(0.0, BLOCKS_UP, 0.0);
         }
 
+        final Direction endFacing = endForge.facing();
         endStepDir = new Vec3(endFacing.getStepX(), endFacing.getStepY(), endFacing.getStepZ());
 
         endYaw = endFacing.toYRot();
@@ -188,7 +193,7 @@ public final class CameraHandler {
             return;
         }
 
-        if (endPosition == null || endFacing == null || endStepDir == null) {
+        if (endPosition == null || endForge == null || endStepDir == null) {
             resetPosition();
             return;
         }

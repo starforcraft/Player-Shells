@@ -1,7 +1,7 @@
 package com.ultramega.playershells.container;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.registry.ModItems;
 
 import net.minecraft.world.Container;

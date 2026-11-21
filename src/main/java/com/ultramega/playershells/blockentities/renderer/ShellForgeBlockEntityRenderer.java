@@ -1,7 +1,8 @@
 package com.ultramega.playershells.blockentities.renderer;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
+import com.ultramega.playershells.entities.renderer.ShellMaskLayer;
 import com.ultramega.playershells.entities.renderer.ShellRenderer;
 import com.ultramega.playershells.events.ClientEvents;
 import com.ultramega.playershells.storage.ClientShellData;
@@ -60,6 +61,8 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
         state.bottom = isBottomHalf(forge.getBlockState());
         state.facing = forge.getBlockState().getValue(FACING);
         state.doorAngle = Mth.lerp(partialTick, forge.getAnimPrevProgress(), forge.getAnimProgress()) * 60.0f;
+        state.fill = forge.getChamberFill(partialTick);
+        state.releaseProgress = forge.getDrainProgress(partialTick);
         state.shell = null;
         final ShellStates shellState = forge.getShellState();
         state.exterminating = shellState == ShellStates.EXTERMINATING;
@@ -71,7 +74,7 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
                 final boolean scanActive = creating || state.exterminating || shellState == ShellStates.DECAYING;
                 final int edgeColor = creating ? 0x36bcb8 : 0x353535;
                 state.shell = ShellRenderer.extract(entity, yawForDirection(state.facing), forge.getShellPercentage(), edgeColor,
-                    state.lightCoords, scanActive);
+                    state.lightCoords, scanActive, forge.getMaskSeparation(partialTick));
             }
             state.flameSeed = level.getRandom().nextLong();
         }
@@ -95,6 +98,8 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
         poseStack.rotateAround(Axis.YP.rotationDegrees(yaw), 0.5f, 0, 0.5f);
         this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_RIGHT), 14.8f / 16f, -state.doorAngle);
         this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_LEFT), 1.1f / 16f, state.doorAngle);
+        ShellMaskLayer.submitReleased(poseStack, nodes, state.lightCoords, state.releaseProgress);
+        ShellForgeFluid.submit(poseStack, nodes, state.fill, state.lightCoords);
         poseStack.popPose();
 
         if (state.exterminating) {
@@ -184,6 +189,8 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
         private boolean bottom;
         private Direction facing;
         private float doorAngle;
+        private float fill;
+        private float releaseProgress;
         private boolean exterminating;
         private long flameSeed;
         @Nullable

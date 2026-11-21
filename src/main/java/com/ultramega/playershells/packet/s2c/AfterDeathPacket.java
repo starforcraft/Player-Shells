@@ -25,7 +25,7 @@ public record AfterDeathPacket(PositionReference shellForgePos) implements Custo
 
     public static void handle(final AfterDeathPacket data, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            CameraHandler.setMovingAnimation(null, null, data.shellForgePos().pos().above(), data.shellForgePos().facing(), () -> { });
+            CameraHandler.setMovingAnimation(null, null, data.shellForgePos(), () -> { });
         }).exceptionally(e -> null);
     }
 }

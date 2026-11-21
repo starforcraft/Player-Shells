@@ -1,7 +1,7 @@
 package com.ultramega.playershells.gui.widgets;
 
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
 
 import java.util.Locale;
 
@@ -28,7 +28,8 @@ public class ShellButton extends Button {
     protected void extractContents(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY, final float partialTick) {
         // TODO: improve visual
         final Minecraft mc = Minecraft.getInstance();
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITES.get(this.active, this.isHoveredOrFocused()), this.getX(), this.getY(), this.getWidth(), this.getHeight(), (Mth.ceil(this.alpha * 255.0F) << 24) | 0xff0000);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITES.get(this.active, this.isHoveredOrFocused()),
+            this.getX(), this.getY(), this.getWidth(), this.getHeight(), (Mth.ceil(this.alpha * 255.0F) << 24) | 0xff0000);
 
         // Render label
         final String text = this.getMessage().getString();

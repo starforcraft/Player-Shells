@@ -4,6 +4,8 @@
   "item.playershells.empty_syringe": "空の注射器",
   "item.playershells.blood_syringe": "血液入り注射器",
   "block.playershells.shell_forge": "クローン創造機",
+  "subtitles.playershells.flamethrower": "クローン創造機が唸る",
+  "subtitles.playershells.mask_release": "呼吸マスクから空気が抜ける",
   "block.playershells.centrifuge": "DNA遠心分離機",
   "gui.playershells.shell_forge.create": "創造",
   "gui.playershells.shell_forge.creating": "創造中",

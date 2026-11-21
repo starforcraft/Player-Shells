@@ -97,7 +97,7 @@ public abstract class RadialMenuRenderer<T> {
             final int x = centerX + Math.round(Mth.cos(angle) * MIDDLE_DISTANCE);
             final int y = centerY + Math.round(Mth.sin(angle) * MIDDLE_DISTANCE);
             final int progress = this.getPlayerShellCreationProgress(entry);
-            final var state = ShellRenderer.extract(entity, 205, progress, 0x36bcb8, 15728880, progress != 100);
+            final var state = ShellRenderer.extract(entity, 205, progress, 0x36bcb8, 15728880, progress != 100, 1f);
             graphics.entity(state, 20, new Vector3f(0, state.boundingBoxHeight / 2f, 0),
                 new Quaternionf().rotateZ((float) Math.PI), null, x - 14, y - 20, x + 14, y + 20);
             if (progress != 100) {
@@ -117,8 +117,8 @@ public abstract class RadialMenuRenderer<T> {
 
     public static MousePos getDiffFromCenter(final double mouseX, final double mouseY) {
         final Window window = Minecraft.getInstance().getWindow();
-        final float centerX = window.getGuiScaledWidth() / 2f;
-        final float centerY = window.getGuiScaledHeight() / 2f;
+        final int centerX = window.getGuiScaledWidth() / 2;
+        final int centerY = window.getGuiScaledHeight() / 2;
 
         final double xDiff = mouseX - centerX;
         final double yDiff = mouseY - centerY;
@@ -127,13 +127,13 @@ public abstract class RadialMenuRenderer<T> {
 
     public int getElementUnderMouse() {
         final MousePos mouse = getMousePos();
-        final double mouseX = mouse.x;
-        final double mouseY = mouse.y;
-        final int count = this.getEntries().size();
+        return this.getElementUnderMouse(getDiffFromCenter(mouse.x(), mouse.y()));
+    }
 
-        final MousePos diffFromCenter = getDiffFromCenter(mouseX, mouseY);
+    protected int getElementUnderMouse(final MousePos diffFromCenter) {
+        final int count = this.getEntries().size();
         final double distanceFromCenter = Mth.length(diffFromCenter.x(), diffFromCenter.y());
-        if (distanceFromCenter > 30) {
+        if (count > 0 && distanceFromCenter >= INNER) {
             // draw mouse selection highlight
             final float angle = (float) (Mth.RAD_TO_DEG * Mth.atan2(diffFromCenter.y(), diffFromCenter.x()));
             final float modeSize = 180F / count;

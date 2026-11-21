@@ -1,6 +1,7 @@
 package com.ultramega.playershells.commands;
 
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blocks.ShellForgeBlock;
 import com.ultramega.playershells.storage.ShellSavedData;
 import com.ultramega.playershells.storage.ShellState;
 import com.ultramega.playershells.utils.MathUtils;
@@ -23,10 +24,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 
+import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.isBottomHalf;
+
 public final class ShellRecoveryCommands {
-    private static final SimpleCommandExceptionType SINGLE_OWNER = new SimpleCommandExceptionType(Component.literal("Select exactly one shell owner."));
-    private static final SimpleCommandExceptionType SHELL_NOT_FOUND = new SimpleCommandExceptionType(Component.literal("No archived shell with that UUID belongs to this player."));
-    private static final SimpleCommandExceptionType FORGE_UNAVAILABLE = new SimpleCommandExceptionType(Component.literal("Choose an empty, unoccupied Shell Forge."));
+    private static final SimpleCommandExceptionType SINGLE_OWNER =
+        new SimpleCommandExceptionType(Component.literal("Select exactly one shell owner."));
+    private static final SimpleCommandExceptionType SHELL_NOT_FOUND =
+        new SimpleCommandExceptionType(Component.literal("No archived shell with that UUID belongs to this player."));
+    private static final SimpleCommandExceptionType FORGE_UNAVAILABLE =
+        new SimpleCommandExceptionType(Component.literal("Choose an empty, unoccupied Shell Forge."));
 
     private ShellRecoveryCommands() {
     }
@@ -85,8 +91,13 @@ public final class ShellRecoveryCommands {
             .filter(shell -> shell.shellUUID().equals(shellUuid)).findFirst().orElseThrow(SHELL_NOT_FOUND::create);
 
         final ServerLevel level = alternateForge ? source.getLevel() : MathUtils.findTargetLevel(source.getServer(), archived.shellForgePos());
-        final BlockPos position = alternateForge ? BlockPosArgument.getBlockPos(context, "forge") : archived.shellForgePos().pos();
-        if (level == null || !level.isInWorldBounds(position)
+        final BlockPos requested = alternateForge ? BlockPosArgument.getBlockPos(context, "forge") : archived.shellForgePos().pos();
+        if (level == null || !level.isInWorldBounds(requested)) {
+            throw FORGE_UNAVAILABLE.create();
+        }
+        final var state = level.getBlockState(requested);
+        final BlockPos position = state.getBlock() instanceof ShellForgeBlock && !isBottomHalf(state) ? requested.below() : requested;
+        if (!level.isInWorldBounds(position)
             || !(level.getChunkAt(position).getBlockEntity(position) instanceof ShellForgeBlockEntity forge)
             || !forge.restoreShell(owner, shellUuid)) {
             throw FORGE_UNAVAILABLE.create();

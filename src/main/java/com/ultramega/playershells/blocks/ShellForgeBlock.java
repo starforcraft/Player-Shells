@@ -1,8 +1,8 @@
 package com.ultramega.playershells.blocks;
 
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.PlayerStates;
 import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
-import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
 import com.ultramega.playershells.events.ShellForgeClient;
 import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModBlocks;

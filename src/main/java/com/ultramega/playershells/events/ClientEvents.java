@@ -1,13 +1,16 @@
 package com.ultramega.playershells.events;
 
 import com.ultramega.playershells.blockentities.renderer.ShellForgeBlockEntityRenderer;
+import com.ultramega.playershells.entities.renderer.ShellMaskLayer;
 import com.ultramega.playershells.entities.renderer.ShellRenderer;
 import com.ultramega.playershells.gui.CentrifugeScreen;
 import com.ultramega.playershells.gui.RadialMenuRenderer;
 import com.ultramega.playershells.gui.ShellForgeScreen;
 import com.ultramega.playershells.gui.ShellSelectionOverlay;
 import com.ultramega.playershells.gui.layer.BloodLayer;
+import com.ultramega.playershells.gui.layer.ShellForgeViewLayer;
 import com.ultramega.playershells.items.extensions.SyringeItemExtension;
+import com.ultramega.playershells.mixin.ClientInputAccessor;
 import com.ultramega.playershells.packet.s2c.AfterDeathPacket;
 import com.ultramega.playershells.packet.s2c.FinishedSyncPacket;
 import com.ultramega.playershells.packet.s2c.SyncShellDataPacket;
@@ -24,6 +27,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.phys.Vec2;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -32,6 +37,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
@@ -64,6 +70,16 @@ public final class ClientEvents {
     }
 
     @SubscribeEvent
+    public static void onMouseScroll(final InputEvent.MouseScrollingEvent event) {
+        if (Minecraft.getInstance().screen == null) {
+            final int vertical = event.getAccumulatedScrollY();
+            if (ShellSelectionOverlay.INSTANCE.mouseScroll(vertical != 0 ? vertical : -event.getAccumulatedScrollX())) {
+                event.setCanceled(true);
+            }
+        }
+    }
+
+    @SubscribeEvent
     public static void onKeyInput(final InputEvent.Key event) {
         final Minecraft mc = Minecraft.getInstance();
         if (ShellSelectionOverlay.INSTANCE.getDisplayedShell() != null && mc.screen == null) {
@@ -75,6 +91,23 @@ public final class ClientEvents {
     public static void onRegisterStandalone(final ModelEvent.RegisterStandalone event) {
         event.register(GLASS_LEFT, SimpleUnbakedStandaloneModel.simpleModelWrapper(GLASS_LEFT_LOC));
         event.register(GLASS_RIGHT, SimpleUnbakedStandaloneModel.simpleModelWrapper(GLASS_RIGHT_LOC));
+        event.register(ShellMaskLayer.MODEL, SimpleUnbakedStandaloneModel.simpleModelWrapper(ShellMaskLayer.MODEL_LOCATION));
+    }
+
+    @SubscribeEvent
+    public static void onMovementInput(final MovementInputUpdateEvent event) {
+        if (CameraHandler.isCameraOutsideOfPlayer()) {
+            event.getInput().keyPresses = Input.EMPTY;
+            ((ClientInputAccessor) event.getInput()).playershells$setMoveVector(Vec2.ZERO);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onInteractionInput(final InputEvent.InteractionKeyMappingTriggered event) {
+        if (CameraHandler.isCameraOutsideOfPlayer() && event.isUseItem()) {
+            event.setSwingHand(false);
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -100,6 +133,7 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onClientTick(final ClientTickEvent.Post event) {
         final Minecraft mc = Minecraft.getInstance();
+        SoundHandler.tick();
         if (mc.player != null && mc.player.isUsingItem() && mc.player.getUseItem().is(ModItems.EMPTY_SYRINGE.get())
             && mc.options.getCameraType() != CameraType.FIRST_PERSON) {
             mc.options.setCameraType(CameraType.FIRST_PERSON);
@@ -126,6 +160,7 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void registerGuiLayers(final RegisterGuiLayersEvent event) {
+        event.registerBelowAll(Identifier.fromNamespaceAndPath(MODID, "shell_forge_view"), new ShellForgeViewLayer());
         event.registerAboveAll(Identifier.fromNamespaceAndPath(MODID, "shells_selection"), ShellSelectionOverlay.INSTANCE);
         event.registerAboveAll(Identifier.fromNamespaceAndPath(MODID, "blood"), new BloodLayer());
     }

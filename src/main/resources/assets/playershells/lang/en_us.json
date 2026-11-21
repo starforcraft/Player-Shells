@@ -4,6 +4,8 @@
   "item.playershells.empty_syringe": "Empty Syringe",
   "item.playershells.blood_syringe": "Syringe filled with Blood",
   "block.playershells.shell_forge": "Shell Forge",
+  "subtitles.playershells.flamethrower": "Shell Forge roars",
+  "subtitles.playershells.mask_release": "Breathing mask hisses",
   "block.playershells.centrifuge": "DNA Centrifuge",
   "gui.playershells.shell_forge.create": "Create",
   "gui.playershells.shell_forge.creating": "Creating",

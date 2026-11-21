@@ -9,7 +9,7 @@ public class ObservableEnergyStorage extends SimpleEnergyHandler {
     }
 
     public int extractEnergy(final int amount, final boolean simulate) {
-        try (final Transaction transaction = Transaction.openRoot()) {
+        try (Transaction transaction = Transaction.openRoot()) {
             final int extracted = this.extract(amount, transaction);
             if (!simulate) {
                 transaction.commit();

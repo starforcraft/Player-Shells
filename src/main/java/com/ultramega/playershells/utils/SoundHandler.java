@@ -1,63 +1,93 @@
 package com.ultramega.playershells.utils;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity;
+import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellStates;
+import com.ultramega.playershells.registry.ModSoundEvents;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 
-import static com.ultramega.playershells.PlayerShells.MODID;
+import static com.ultramega.playershells.utils.MathUtils.smoothstep01;
 
-@EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
-public class SoundHandler {
-    private static final Multimap<BlockPos, SoundInstance> SOUND_MAP = ArrayListMultimap.create();
+public final class SoundHandler {
+    private static final Map<BlockPos, ExterminationSound> EXTERMINATIONS = new HashMap<>();
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onBlockPlaySound(final PlaySoundEvent event) {
-        final SoundInstance sound = event.getSound();
-        if (sound == null) {
-            return;
-        }
-
-        if (!event.getOriginalSound().getIdentifier().getNamespace().equals(MODID)) {
-            return;
-        }
-
-        final BlockPos pos = new BlockPos((int) sound.getX(), (int) sound.getY(), (int) sound.getZ());
-        SOUND_MAP.put(pos, sound);
+    private SoundHandler() {
     }
 
-    public static void startBlockSound(final SoundEvent soundEvent,
-                                       final SoundSource source,
-                                       final float volume,
-                                       final float pitch,
-                                       final RandomSource random,
-                                       final BlockPos pos) {
-        final SoundInstance sound = new SimpleSoundInstance(soundEvent, source, volume, pitch, random, pos.getX(), pos.getY(), pos.getZ());
-        Minecraft.getInstance().getSoundManager().play(sound);
+    public static void playExtermination(final ShellForgeBlockEntity forge, final RandomSource random) {
+        final BlockPos pos = forge.getBlockPos();
+        final Minecraft client = Minecraft.getInstance();
+        if (EXTERMINATIONS.containsKey(pos) || client.gameRenderer.getMainCamera().position().distanceToSqr(pos.getCenter()) > 24 * 24
+            || client.options.getFinalSoundSourceVolume(SoundSource.BLOCKS) <= 0f) {
+            return;
+        }
+
+        final var sound = new ExterminationSound(pos, forge.getShellUuid(), random);
+        if (client.getSoundManager().play(sound) != SoundEngine.PlayResult.NOT_STARTED) {
+            EXTERMINATIONS.put(pos, sound);
+        }
+    }
+
+    public static void tick() {
+        final var sounds = Minecraft.getInstance().getSoundManager();
+        EXTERMINATIONS.values().removeIf(sound -> sound.isStopped() || !sounds.isActive(sound));
     }
 
     public static void stopAllBlockSounds() {
         final var sounds = Minecraft.getInstance().getSoundManager();
-        SOUND_MAP.values().forEach(sounds::stop);
-        SOUND_MAP.clear();
+        EXTERMINATIONS.values().forEach(sounds::stop);
+        EXTERMINATIONS.clear();
     }
 
-    public static void stopAllBlockSounds(final BlockPos pos) {
-        for (final SoundInstance sound : SOUND_MAP.get(pos)) {
-            if (sound != null) {
-                Minecraft.getInstance().getSoundManager().stop(sound);
+    private static final class ExterminationSound extends AbstractTickableSoundInstance {
+        private static final int FADE_IN_TICKS = 10;
+        private static final float FADE_OUT_PERCENT = 16f;
+        private static final float MAX_VOLUME = 0.9f;
+
+        private final BlockPos forgePos;
+        private final UUID shellUuid;
+        private int age;
+
+        private ExterminationSound(final BlockPos forgePos, final UUID shellUuid, final RandomSource random) {
+            super(ModSoundEvents.FLAMETHROWER.get(), SoundSource.BLOCKS, random);
+            this.forgePos = forgePos;
+            this.shellUuid = shellUuid;
+            this.x = forgePos.getX() + 0.5;
+            this.y = forgePos.getY() + 1.0;
+            this.z = forgePos.getZ() + 0.5;
+            this.looping = true;
+            this.volume = 0f;
+        }
+
+        @Override
+        public boolean canStartSilent() {
+            return true;
+        }
+
+        @Override
+        public void tick() {
+            final var level = Minecraft.getInstance().level;
+            if (level != null && level.getBlockEntity(this.forgePos) instanceof ShellForgeBlockEntity forge
+                && forge.getShellState() == ShellStates.EXTERMINATING && forge.getShellUuid().equals(this.shellUuid)) {
+                final float envelope = Math.min(++this.age / (float) FADE_IN_TICKS, forge.getShellPercentage() / FADE_OUT_PERCENT);
+                this.volume = Mth.approach(this.volume, MAX_VOLUME * smoothstep01(envelope), 0.14f);
+            } else {
+                // Release gradually even if a chunk unload or block removal cuts the cycle short.
+                this.volume = Mth.approach(this.volume, 0f, MAX_VOLUME / FADE_OUT_PERCENT);
+                if (this.volume <= 0f) {
+                    this.stop();
+                }
             }
         }
-        SOUND_MAP.removeAll(pos);
     }
 }

@@ -18,7 +18,11 @@ public class ItemWithOwner extends Item {
     }
 
     @Override
-    public void appendHoverText(final ItemStack stack, final TooltipContext context, final TooltipDisplay display, final Consumer<Component> components, final TooltipFlag tooltipFlag) {
+    public void appendHoverText(final ItemStack stack,
+                                final TooltipContext context,
+                                final TooltipDisplay display,
+                                final Consumer<Component> components,
+                                final TooltipFlag tooltipFlag) {
         if (stack.has(ModDataComponentTypes.OWNER_PLAYER.get())) {
             final OwnerData owner = stack.get(ModDataComponentTypes.OWNER_PLAYER.get());
             if (owner != null) {
