@@ -61,8 +61,7 @@ public final class ShellForgeClient {
         final boolean cameraApproaching = CameraHandler.isMovingTo(level.dimension().identifier(), pos);
         final boolean releaseStarted = blockEntity.tickChamberAnimation(cameraApproaching && player != null && overlapsShellForge(player, pos));
         if (releaseStarted && !cameraApproaching) {
-            level.playLocalSound(pos.getX() + 0.5, pos.getY() + 1.6, pos.getZ() + 0.5, ModSoundEvents.MASK_RELEASE.get(),
-                SoundSource.BLOCKS, 0.75f, 1f, false);
+            level.playLocalSound(pos.getX() + 0.5, pos.getY() + 1.6, pos.getZ() + 0.5, ModSoundEvents.MASK_RELEASE.get(), SoundSource.BLOCKS, 0.75f, 1f, false);
         }
         if (blockEntity.getShellState() == ShellStates.EXTERMINATING) {
             SoundHandler.playExtermination(blockEntity, level.getRandom());
@@ -81,11 +80,11 @@ public final class ShellForgeClient {
         }
     }
 
-    public static void entityInside(final Player player, final Level level, final BlockPos pos,
-                                    final BlockState state, final ShellForgeBlockEntity shellForge) {
+    public static void entityInside(final Player player, final Level level, final BlockPos pos, final BlockState state, final ShellForgeBlockEntity shellForge) {
         if (player != Minecraft.getInstance().player) {
             return;
         }
+
         final PlayerStates playerState = shellForge.getPlayerState();
         if (playerState == PlayerStates.NONE) {
             blockShellSelection = false;

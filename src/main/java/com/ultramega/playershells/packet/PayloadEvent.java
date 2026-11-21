@@ -22,8 +22,7 @@ public final class PayloadEvent {
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.2");
-        registrar.playToServer(RenameShellPacket.TYPE, RenameShellPacket.STREAM_CODEC, RenameShellPacket::handle);
+        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.0");
         registrar.playToServer(
             ShellButtonPressedPacket.TYPE,
             ShellButtonPressedPacket.STREAM_CODEC,
@@ -43,6 +42,11 @@ public final class PayloadEvent {
             ValidateShellForgePacket.TYPE,
             ValidateShellForgePacket.STREAM_CODEC,
             ValidateShellForgePacket::handle
+        );
+        registrar.playToServer(
+            RenameShellPacket.TYPE,
+            RenameShellPacket.STREAM_CODEC,
+            RenameShellPacket::handle
         );
 
         registrar.playToClient(

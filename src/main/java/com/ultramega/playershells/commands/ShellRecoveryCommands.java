@@ -60,7 +60,7 @@ public final class ShellRecoveryCommands {
     }
 
     private static CompletableFuture<Suggestions> suggestShells(final CommandContext<CommandSourceStack> context,
-                                                               final SuggestionsBuilder builder) {
+                                                                final SuggestionsBuilder builder) {
         final UUID owner;
         try {
             owner = getOwner(context);

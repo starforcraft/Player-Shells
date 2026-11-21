@@ -96,16 +96,19 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
         };
         poseStack.pushPose();
         poseStack.rotateAround(Axis.YP.rotationDegrees(yaw), 0.5f, 0, 0.5f);
-        this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_RIGHT), 14.8f / 16f, -state.doorAngle);
-        this.submitDoor(poseStack, nodes, state.lightCoords, models.getStandaloneModel(ClientEvents.GLASS_LEFT), 1.1f / 16f, state.doorAngle);
+        final var glassLeft = models.getStandaloneModel(ClientEvents.GLASS_LEFT);
+        final var glassRight = models.getStandaloneModel(ClientEvents.GLASS_RIGHT);
+        if (glassLeft != null && glassRight != null) {
+            this.submitDoor(poseStack, nodes, state.lightCoords, glassRight, 14.8f / 16f, -state.doorAngle);
+            this.submitDoor(poseStack, nodes, state.lightCoords, glassLeft, 1.1f / 16f, state.doorAngle);
+        }
         ShellMaskLayer.submitReleased(poseStack, nodes, state.lightCoords, state.releaseProgress);
         ShellForgeFluid.submit(poseStack, nodes, state.fill, state.lightCoords);
         poseStack.popPose();
 
         if (state.exterminating) {
             final long seed = state.flameSeed;
-            nodes.submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
-                (pose, buffer) -> this.renderSmallFlame(pose, buffer, RandomSource.create(seed)));
+            nodes.submitCustomGeometry(poseStack, RenderTypes.debugQuads(), (pose, buffer) -> this.renderSmallFlame(pose, buffer, RandomSource.create(seed)));
         }
         if (state.shell != null) {
             client.getEntityRenderDispatcher().submit(state.shell, camera, 0.5, 0.0625, 0.5, poseStack, nodes);
@@ -178,7 +181,6 @@ public class ShellForgeBlockEntityRenderer implements BlockEntityRenderer<ShellF
             poseStack.popPose();
         }
     }
-
 
     @Override
     public AABB getRenderBoundingBox(final ShellForgeBlockEntity forge) {

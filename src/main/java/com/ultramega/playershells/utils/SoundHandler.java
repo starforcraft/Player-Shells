@@ -78,11 +78,11 @@ public final class SoundHandler {
         public void tick() {
             final var level = Minecraft.getInstance().level;
             if (level != null && level.getBlockEntity(this.forgePos) instanceof ShellForgeBlockEntity forge
-                && forge.getShellState() == ShellStates.EXTERMINATING && forge.getShellUuid().equals(this.shellUuid)) {
+                && forge.getShellState() == ShellStates.EXTERMINATING
+                && forge.getShellUuid().equals(this.shellUuid)) {
                 final float envelope = Math.min(++this.age / (float) FADE_IN_TICKS, forge.getShellPercentage() / FADE_OUT_PERCENT);
                 this.volume = Mth.approach(this.volume, MAX_VOLUME * smoothstep01(envelope), 0.14f);
             } else {
-                // Release gradually even if a chunk unload or block removal cuts the cycle short.
                 this.volume = Mth.approach(this.volume, 0f, MAX_VOLUME / FADE_OUT_PERCENT);
                 if (this.volume <= 0f) {
                     this.stop();

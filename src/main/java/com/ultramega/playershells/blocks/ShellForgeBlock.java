@@ -92,7 +92,6 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
         SHAPES[HALF_TOP][STATE_OPEN][dirToIndex(Direction.WEST)] = openToWestTop;
     }
 
-
     public ShellForgeBlock(final Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState()
@@ -176,8 +175,12 @@ public class ShellForgeBlock extends AbstractMultiblockBlock implements EntityBl
     }
 
     @Override
-    protected void entityInside(final BlockState state, final Level level, final BlockPos pos, final Entity entity,
-                                final InsideBlockEffectApplier effects, final boolean precise) {
+    protected void entityInside(final BlockState state,
+                                final Level level,
+                                final BlockPos pos,
+                                final Entity entity,
+                                final InsideBlockEffectApplier effects,
+                                final boolean precise) {
         if (!(entity instanceof Player player) || !isBottomHalf(state) || !(level.getBlockEntity(pos) instanceof ShellForgeBlockEntity shellForge)) {
             return;
         }

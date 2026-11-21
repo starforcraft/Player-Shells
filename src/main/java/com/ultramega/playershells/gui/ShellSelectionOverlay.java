@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -43,6 +44,8 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     private static final int SHELLS_PER_PAGE = 6;
     private static final int PAGE_ARROW_OFFSET = 26;
     private static final int PAGE_ARROW_HALF_SIZE = 7;
+
+    // All copied and duplicated, so unnecessary mixin/accesstransformer won't be required
     private static final Identifier ARMOR_EMPTY_SPRITE = Identifier.withDefaultNamespace("hud/armor_empty");
     private static final Identifier ARMOR_FULL_SPRITE = Identifier.withDefaultNamespace("hud/armor_full");
     private static final Identifier ARMOR_HALF_SPRITE = Identifier.withDefaultNamespace("hud/armor_half");
@@ -52,9 +55,18 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
     private static final Identifier FOOD_FULL_SPRITE = Identifier.withDefaultNamespace("hud/food_full");
     private static final Identifier FOOD_HALF_HUNGER_SPRITE = Identifier.withDefaultNamespace("hud/food_half_hunger");
     private static final Identifier FOOD_HALF_SPRITE = Identifier.withDefaultNamespace("hud/food_half");
-    private static final EquipmentSlot[] ARMOR = {EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD};
-    private static final Identifier[] EMPTY_ARMOR = {InventoryMenu.EMPTY_ARMOR_SLOT_HELMET, InventoryMenu.EMPTY_ARMOR_SLOT_CHESTPLATE,
-        InventoryMenu.EMPTY_ARMOR_SLOT_LEGGINGS, InventoryMenu.EMPTY_ARMOR_SLOT_BOOTS};
+    private static final EquipmentSlot[] ARMOR = {
+        EquipmentSlot.FEET,
+        EquipmentSlot.LEGS,
+        EquipmentSlot.CHEST,
+        EquipmentSlot.HEAD
+    };
+    private static final Identifier[] EMPTY_ARMOR = {
+        InventoryMenu.EMPTY_ARMOR_SLOT_HELMET,
+        InventoryMenu.EMPTY_ARMOR_SLOT_CHESTPLATE,
+        InventoryMenu.EMPTY_ARMOR_SLOT_LEGGINGS,
+        InventoryMenu.EMPTY_ARMOR_SLOT_BOOTS
+    };
     private static final Identifier INVENTORY_LOCATION = Identifier.fromNamespaceAndPath(MODID, "textures/gui/clean_inventory.png");
 
     @Nullable
@@ -101,15 +113,15 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         if (pageCount <= 1) {
             return;
         }
-        final var font = Minecraft.getInstance().font;
+
+        final Font font = Minecraft.getInstance().font;
         final int centerX = graphics.guiWidth() / 2;
         final int centerY = graphics.guiHeight() / 2;
         final MousePos mouse = getMousePos();
         final int hoveredArrow = pageArrowAt(getDiffFromCenter(mouse.x(), mouse.y()));
         final Component counter = Component.literal((this.pageIndex + 1) + "/" + pageCount);
         final int counterHalfWidth = (font.width(counter) + 1) / 2 + 4;
-        graphics.fill(centerX - counterHalfWidth, centerY - PAGE_ARROW_HALF_SIZE,
-            centerX + counterHalfWidth, centerY + PAGE_ARROW_HALF_SIZE, 0xCC343434);
+        graphics.fill(centerX - counterHalfWidth, centerY - PAGE_ARROW_HALF_SIZE, centerX + counterHalfWidth, centerY + PAGE_ARROW_HALF_SIZE, 0xCC343434);
         graphics.centeredText(font, counter, centerX, centerY - font.lineHeight / 2, 0xCCFFFFFF);
         this.renderPageArrow(graphics, centerX, centerY, -1, this.pageIndex > 0, hoveredArrow == -1);
         this.renderPageArrow(graphics, centerX, centerY, 1, this.pageIndex + 1 < pageCount, hoveredArrow == 1);
@@ -123,8 +135,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             graphics.fill(x - size, centerY - size, x + size, centerY + size, 0x994D4D4D);
         }
         final var font = Minecraft.getInstance().font;
-        graphics.centeredText(font, Component.literal(direction < 0 ? "‹" : "›"), x, centerY - font.lineHeight / 2,
-            enabled ? 0xCCFFFFFF : 0x66888888);
+        graphics.centeredText(font, Component.literal(direction < 0 ? "‹" : "›"), x, centerY - font.lineHeight / 2, enabled ? 0xCCFFFFFF : 0x66888888);
     }
 
     private static int pageArrowAt(final MousePos mouse) {
@@ -336,9 +347,6 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         graphics.itemDecorations(Minecraft.getInstance().font, stack, x, y);
     }
 
-    /**
-     * Copied and modified from {@link net.minecraft.client.gui.Gui#renderFood(net.minecraft.client.gui.GuiGraphicsExtractor, net.minecraft.world.entity.player.Player, int, int)}
-     */
     private void renderFood(final GuiGraphicsExtractor graphics, final StatEntry stats, final int x, final int y) {
         final int foodLevel = stats.foodLevel();
 
@@ -346,7 +354,6 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
         final Identifier emptySprite = hasHunger ? FOOD_EMPTY_HUNGER_SPRITE : FOOD_EMPTY_SPRITE;
         final Identifier halfSprite = hasHunger ? FOOD_HALF_HUNGER_SPRITE : FOOD_HALF_SPRITE;
         final Identifier fullSprite = hasHunger ? FOOD_FULL_HUNGER_SPRITE : FOOD_FULL_SPRITE;
-
 
         for (int i = 0; i < 10; i++) {
             final int foodIndex = i * 2 + 1;
@@ -360,32 +367,23 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, halfSprite, posX, y, 9, 9);
             }
         }
-
     }
 
-    /**
-     * Copied and modified from {@link Gui#renderArmor(GuiGraphics, Player, int, int, int, int)}
-     */
     private void renderArmor(final GuiGraphicsExtractor graphics, final int armorValue, final int x, final int y) {
         for (int i = 0; i < 10; i++) {
             final int armorIndex = i * 2 + 1;
-            final Identifier sprite = armorIndex < armorValue ? ARMOR_FULL_SPRITE
-                : armorIndex == armorValue ? ARMOR_HALF_SPRITE : ARMOR_EMPTY_SPRITE;
+            final Identifier sprite = armorIndex < armorValue ? ARMOR_FULL_SPRITE : armorIndex == armorValue ? ARMOR_HALF_SPRITE : ARMOR_EMPTY_SPRITE;
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x + i * 8, y, 9, 9);
         }
     }
 
-    /**
-     * Copied and modified from {@link Gui#renderHearts(GuiGraphics, Player, int, int, int, int, float, int, int, int, boolean)}
-     */
-    private void renderHearts(
-        final GuiGraphicsExtractor guiGraphics,
-        final int x,
-        final int y,
-        final int height,
-        final float maxHealth,
-        final int currentHealth,
-        final int absorptionAmount) {
+    private void renderHearts(final GuiGraphicsExtractor guiGraphics,
+                              final int x,
+                              final int y,
+                              final int height,
+                              final float maxHealth,
+                              final int currentHealth,
+                              final int absorptionAmount) {
         final Gui.HeartType heartType = Gui.HeartType.NORMAL; //Gui.HeartType.forPlayer(player);
         final boolean hardcore = false;
 
@@ -409,8 +407,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
                 final int absorptionHalfIndex = halfIndex - maxHealthFull;
                 if (absorptionHalfIndex < absorptionAmount) {
                     final boolean isHalf = absorptionHalfIndex + 1 == absorptionAmount;
-                    this.renderHeart(guiGraphics, heartType == Gui.HeartType.WITHERED ? heartType : Gui.HeartType.ABSORBING,
-                        posX, posY, hardcore, false, isHalf);
+                    this.renderHeart(guiGraphics, Gui.HeartType.ABSORBING, posX, posY, hardcore, false, isHalf);
                 }
             }
 
@@ -428,9 +425,7 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
                              final boolean hardcore,
                              final boolean halfHeart,
                              final boolean blinking) {
-
         guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, heartType.getSprite(hardcore, blinking, halfHeart), x, y, 9, 9);
-
     }
 
     public void open(final Player player, final Consumer<ShellEntry> onSelectShell, final Runnable onClose) {

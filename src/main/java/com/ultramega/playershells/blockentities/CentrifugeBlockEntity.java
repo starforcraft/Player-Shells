@@ -6,7 +6,6 @@ import com.ultramega.playershells.registry.ModBlockEntityTypes;
 import com.ultramega.playershells.registry.ModBlocks;
 import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
-import com.ultramega.playershells.utils.MachineInventory;
 import com.ultramega.playershells.utils.ObservableEnergyStorage;
 import com.ultramega.playershells.utils.OwnerData;
 
@@ -28,14 +27,15 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 
 public class CentrifugeBlockEntity extends BlockEntity implements MenuProvider, Nameable {
     public static final int PROCESSING_TOTAL_TIME = 200;
 
-    public final MachineInventory inventoryHandler = new MachineInventory(2) {
+    public final ItemStacksResourceHandler inventoryHandler = new ItemStacksResourceHandler(2) {
         @Override
-        public void setChanged() {
-            super.setChanged();
+        protected void onContentsChanged(final int slot, final ItemStack previousContents) {
             CentrifugeBlockEntity.super.setChanged();
         }
     };
@@ -62,15 +62,14 @@ public class CentrifugeBlockEntity extends BlockEntity implements MenuProvider, 
         if (blockEntity.processingProgress >= PROCESSING_TOTAL_TIME) {
             blockEntity.processingProgress = 0;
 
-            final ItemStack syringeStack = blockEntity.inventoryHandler.getItem(0);
-            final OwnerData ownerData = syringeStack.get(ModDataComponentTypes.OWNER_PLAYER.get());
-            blockEntity.inventoryHandler.removeItem(0, 1);
+            final var inventory = blockEntity.inventoryHandler;
+            final ItemResource syringe = inventory.getResource(0);
+            final OwnerData ownerData = syringe.get(ModDataComponentTypes.OWNER_PLAYER.get());
+            inventory.set(0, syringe, inventory.getAmountAsInt(0) - 1);
 
-            final ItemStack dnaStack = ModItems.DNA.get().getDefaultInstance();
-            final ItemStack current = blockEntity.inventoryHandler.getItem(1);
-            dnaStack.setCount(Math.min(current.getCount() + blockEntity.level.getRandom().nextInt(1, 6), dnaStack.getMaxStackSize()));
-            dnaStack.set(ModDataComponentTypes.OWNER_PLAYER.get(), ownerData);
-            blockEntity.inventoryHandler.setItem(1, dnaStack);
+            final ItemResource dna = ItemResource.of(ModItems.DNA.get()).with(ModDataComponentTypes.OWNER_PLAYER.get(), ownerData);
+            final int amount = Math.min(inventory.getAmountAsInt(1) + blockEntity.level.getRandom().nextInt(1, 6), dna.getMaxStackSize());
+            inventory.set(1, dna, amount);
 
             blockEntity.energyStorage.extractEnergy(Config.CENTRIFUGE_ENERGY_USAGE.get(), false);
         }
@@ -79,8 +78,8 @@ public class CentrifugeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     private boolean cannotOperate() {
-        final ItemStack inputStack = this.inventoryHandler.getItem(0);
-        final ItemStack resultStack = this.inventoryHandler.getItem(1);
+        final ItemResource inputStack = this.inventoryHandler.getResource(0);
+        final ItemResource resultStack = this.inventoryHandler.getResource(1);
         boolean isNotSameUUID = true;
         if (!inputStack.isEmpty() && !resultStack.isEmpty()) {
             final OwnerData inputOwnerData = inputStack.get(ModDataComponentTypes.OWNER_PLAYER.get());
@@ -91,14 +90,14 @@ public class CentrifugeBlockEntity extends BlockEntity implements MenuProvider, 
         }
         return this.energyStorage.getAmountAsLong() <= Config.CENTRIFUGE_ENERGY_USAGE.get()
             || inputStack.isEmpty()
-            || resultStack.getCount() >= resultStack.getMaxStackSize()
+            || this.inventoryHandler.getAmountAsInt(1) >= resultStack.getMaxStackSize()
             || !isNotSameUUID;
     }
 
     @Override
     protected void loadAdditional(final ValueInput input) {
         super.loadAdditional(input);
-        this.inventoryHandler.load(input.childOrEmpty("inv"));
+        this.inventoryHandler.deserialize(input.childOrEmpty("inv"));
         this.energyStorage.set(input.getIntOr("energy", 0));
         this.processingProgress = input.getIntOr("processingProgress", 0);
     }
@@ -106,7 +105,7 @@ public class CentrifugeBlockEntity extends BlockEntity implements MenuProvider, 
     @Override
     protected void saveAdditional(final ValueOutput output) {
         super.saveAdditional(output);
-        this.inventoryHandler.save(output.child("inv"));
+        this.inventoryHandler.serialize(output.child("inv"));
         output.putInt("energy", (int) this.energyStorage.getAmountAsLong());
         output.putInt("processingProgress", this.processingProgress);
     }

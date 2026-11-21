@@ -53,8 +53,7 @@ public class ShellSavedData extends SavedData {
     private static final SavedDataType<ShellSavedData> TYPE = new SavedDataType<>(
         Identifier.fromNamespaceAndPath(MODID, "player_shells"),
         ShellSavedData::new,
-        Codec.withAlternative(CODEC, ShellState.MULTIMAP_CODEC.xmap(
-            entries -> new ShellSavedData(entries, ArrayListMultimap.create()), data -> data.entries))
+        Codec.withAlternative(CODEC, ShellState.MULTIMAP_CODEC.xmap(entries -> new ShellSavedData(entries, ArrayListMultimap.create()), data -> data.entries))
     );
 
     private final ListMultimap<UUID, ShellState> entries;

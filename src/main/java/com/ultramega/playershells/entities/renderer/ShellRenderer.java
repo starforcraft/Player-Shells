@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.player.PlayerModelType;
 
 public class ShellRenderer extends AvatarRenderer<ShellEntity> {
-    // The rendered hat extends above the player's collision box.
+    // Rendered hat extends above the player's collision box
     private static final float HAT_TOP = (1.501F + 8.5F / 16.0F) * 0.9375F;
 
     private static ShellRenderer wide;
@@ -31,8 +31,13 @@ public class ShellRenderer extends AvatarRenderer<ShellEntity> {
         return model == PlayerModelType.SLIM ? slim : wide;
     }
 
-    public static State extract(final ShellEntity shell, final float yaw, final int progress, final int edgeColor, final int light,
-                                final boolean scanActive, final float maskSeparation) {
+    public static State extract(final ShellEntity shell,
+                                final float yaw,
+                                final int progress,
+                                final int edgeColor,
+                                final int light,
+                                final boolean scanActive,
+                                final float maskSeparation) {
         shell.setYRot(yaw);
         shell.yBodyRot = yaw;
         shell.yBodyRotO = yaw;

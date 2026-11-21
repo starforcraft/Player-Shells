@@ -30,11 +30,15 @@ public record ShellButtonPressedPacket(BlockPos shellForgePos, UUID confirmedShe
 
     public static void handle(final ShellButtonPressedPacket data, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (context.player() instanceof ServerPlayer player && player.containerMenu instanceof ShellForgeContainerMenu menu
-                && menu.stillValid(player) && menu.getBlockEntity().getBlockPos().equals(data.shellForgePos())
-                && player.level().getBlockEntity(data.shellForgePos()) == menu.getBlockEntity()) {
-                menu.getBlockEntity().shellButtonPressed(data.confirmedShell());
+            if (!(context.player() instanceof ServerPlayer player)
+                || !(player.containerMenu instanceof ShellForgeContainerMenu menu)
+                || !menu.stillValid(player)
+                || !menu.getBlockEntity().getBlockPos().equals(data.shellForgePos())
+                || player.level().getBlockEntity(data.shellForgePos()) != menu.getBlockEntity()) {
+                return;
             }
+
+            menu.getBlockEntity().shellButtonPressed(data.confirmedShell());
         }).exceptionally(e -> null);
     }
 }

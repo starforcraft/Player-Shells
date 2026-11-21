@@ -16,10 +16,8 @@ public final class ModItems {
     public static final DeferredItem<SyringeItem> EMPTY_SYRINGE = ITEMS.registerItem("empty_syringe", SyringeItem::new, properties -> properties.stacksTo(1));
     public static final DeferredItem<SyringeItem> BLOOD_SYRINGE = ITEMS.registerItem("blood_syringe", SyringeItem::new);
 
-    public static final DeferredItem<BlockItem> SHELL_FORGE = ITEMS.registerSimpleBlockItem("shell_forge",
-        ModBlocks.SHELL_FORGE);
-    public static final DeferredItem<BlockItem> CENTRIFUGE = ITEMS.registerSimpleBlockItem("centrifuge",
-        ModBlocks.CENTRIFUGE);
+    public static final DeferredItem<BlockItem> SHELL_FORGE = ITEMS.registerSimpleBlockItem("shell_forge", ModBlocks.SHELL_FORGE);
+    public static final DeferredItem<BlockItem> CENTRIFUGE = ITEMS.registerSimpleBlockItem("centrifuge", ModBlocks.CENTRIFUGE);
 
     private ModItems() {
     }

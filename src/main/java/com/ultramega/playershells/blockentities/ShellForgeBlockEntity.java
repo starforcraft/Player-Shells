@@ -9,13 +9,13 @@ import com.ultramega.playershells.registry.ModDataComponentTypes;
 import com.ultramega.playershells.registry.ModItems;
 import com.ultramega.playershells.storage.ShellSavedData;
 import com.ultramega.playershells.storage.ShellState;
-import com.ultramega.playershells.utils.MachineInventory;
 import com.ultramega.playershells.utils.ObservableEnergyStorage;
 import com.ultramega.playershells.utils.PositionReference;
 import com.ultramega.playershells.utils.ShellPlayer;
 
 import java.util.Objects;
 import java.util.UUID;
+import javax.annotation.Nullable;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
@@ -43,6 +43,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 
 import static com.ultramega.playershells.Config.SHELL_FORGE_DNA_AMOUNT;
 import static com.ultramega.playershells.blocks.AbstractMultiblockBlock.FACING;
@@ -58,10 +59,9 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     private static final int TRANSFER_DRAIN_TICKS = 34;
     private static final int MASK_FIT_TICKS = 14;
 
-    public final MachineInventory inventoryHandler = new MachineInventory(1) {
+    public final ItemStacksResourceHandler inventoryHandler = new ItemStacksResourceHandler(1) {
         @Override
-        public void setChanged() {
-            super.setChanged();
+        protected void onContentsChanged(final int slot, final ItemStack previousContents) {
             ShellForgeBlockEntity.super.setChanged();
         }
     };
@@ -157,14 +157,13 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
 
         final float targetFill = this.targetFluidFill();
         this.previousFluidFill = this.fluidFill < 0f ? targetFill : this.fluidFill;
-        this.fluidFill = Math.abs(this.previousFluidFill - targetFill) < 0.001f ? targetFill
-            : Mth.lerp(0.2f, this.previousFluidFill, targetFill);
+        this.fluidFill = Math.abs(this.previousFluidFill - targetFill) < 0.001f ? targetFill : Mth.lerp(0.2f, this.previousFluidFill, targetFill);
 
         final boolean newTransfer = this.observedTransferTick != this.lastTransferTick;
         if (newTransfer) {
             this.observedTransferTick = this.lastTransferTick;
-            // A client that starts tracking an old transfer should see an empty chamber.
-            this.drainTicks = this.lastTransferTick < 0L || this.level == null ? TRANSFER_DRAIN_TICKS
+            this.drainTicks = this.lastTransferTick < 0L || this.level == null
+                ? TRANSFER_DRAIN_TICKS
                 : (int) Math.clamp(this.level.getGameTime() - this.lastTransferTick, 0L, TRANSFER_DRAIN_TICKS);
         }
         final boolean holdDrain = waitingForArrivalCamera && this.playerState == PlayerStates.TRANSFERRED && this.lastTransferTick >= 0L;
@@ -274,10 +273,11 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
             return;
         }
 
-        final UUID playerUUID = Objects.requireNonNull(this.inventoryHandler.getItem(0).get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
+        final var dna = this.inventoryHandler.getResource(0);
+        final UUID playerUUID = Objects.requireNonNull(dna.get(ModDataComponentTypes.OWNER_PLAYER.get())).playerUUID();
 
         this.energyStorage.extractEnergy(Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get(), false);
-        this.inventoryHandler.removeItem(0, SHELL_FORGE_DNA_AMOUNT.get());
+        this.inventoryHandler.set(0, dna, this.inventoryHandler.getAmountAsInt(0) - SHELL_FORGE_DNA_AMOUNT.get());
         this.lastTransferTick = -1L;
         this.setPlayerUuid(playerUUID);
         this.setShellState(ShellStates.CREATING);
@@ -310,19 +310,19 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         final TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, serverLevel.registryAccess());
         body.saveWithoutId(output);
         output.discard(Entity.TAG_UUID);
-        output.store("playerGameType", GameType.LEGACY_ID_CODEC, gameMode);
+        output.store("playerGameType", GameType.LEGACY_ID_CODEC, gameMode); // ServerPlayer#storeGameTypes uses Legacy, so we have to too
         return output.buildResult();
     }
 
     public boolean canCreateShell() {
         final int energyNeeded = Config.SHELL_FORGE_ENERGY_USAGE_CREATION.get();
 
-        final ItemStack stack = this.inventoryHandler.getItem(0);
-        if (stack.isEmpty() || !stack.is(ModItems.DNA) || !stack.has(ModDataComponentTypes.OWNER_PLAYER.get())) {
+        final var stack = this.inventoryHandler.getResource(0);
+        if (stack.isEmpty() || !stack.is(ModItems.DNA.get()) || !stack.has(ModDataComponentTypes.OWNER_PLAYER.get())) {
             return false;
         }
 
-        if (stack.getCount() < SHELL_FORGE_DNA_AMOUNT.get()) {
+        if (this.inventoryHandler.getAmountAsInt(0) < SHELL_FORGE_DNA_AMOUNT.get()) {
             return false;
         }
 
@@ -366,13 +366,15 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     public boolean restoreShell(final UUID owner, final UUID restoredShellUuid) {
-        if (!(this.level instanceof ServerLevel level) || this.shellState != ShellStates.CREATE || this.playerState != PlayerStates.NONE
-            || hasPlayerInside(this.getBlockPos(), level)) {
+        if (!(this.level instanceof ServerLevel serverLevel)
+            || this.shellState != ShellStates.CREATE
+            || this.playerState != PlayerStates.NONE
+            || hasPlayerInside(this.getBlockPos(), serverLevel)) {
             return false;
         }
 
-        final ShellSavedData data = ShellSavedData.getShellData(level);
-        final PositionReference position = new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), level.dimension().identifier());
+        final ShellSavedData data = ShellSavedData.getShellData(serverLevel);
+        final PositionReference position = new PositionReference(this.getBlockPos(), this.getBlockState().getValue(FACING), serverLevel.dimension().identifier());
         if (!data.restore(owner, restoredShellUuid, position)) {
             return false;
         }
@@ -389,7 +391,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         super.loadAdditional(input);
         final ShellStates oldShellState = this.shellState;
         final UUID oldShellUuid = this.shellUuid;
-        this.inventoryHandler.load(input.childOrEmpty("inv"));
+        this.inventoryHandler.deserialize(input.childOrEmpty("inv"));
         this.energyStorage.set(input.getIntOr("energy", 0));
         this.playerUuid = input.read("playerUuid", UUIDUtil.CODEC).orElse(EMPTY_UUID);
         this.playerState = PlayerStates.values()[Mth.clamp(input.getIntOr("playerState", 0), 0, PlayerStates.values().length - 1)];
@@ -412,7 +414,7 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     @Override
     protected void saveAdditional(final ValueOutput output) {
         super.saveAdditional(output);
-        this.inventoryHandler.save(output.child("inv"));
+        this.inventoryHandler.serialize(output.child("inv"));
         output.putInt("energy", (int) this.energyStorage.getAmountAsLong());
         output.store("playerUuid", UUIDUtil.CODEC, this.playerUuid);
         output.putInt("playerState", this.playerState.ordinal());
@@ -457,8 +459,11 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     public boolean canRenameShell(final UUID owner, final UUID shell) {
-        return this.shellState != ShellStates.CREATE && this.shellState != ShellStates.EXTERMINATING
-            && !shell.equals(EMPTY_UUID) && this.shellUuid.equals(shell) && this.playerUuid.equals(owner);
+        return this.shellState != ShellStates.CREATE
+            && this.shellState != ShellStates.EXTERMINATING
+            && !shell.equals(EMPTY_UUID)
+            && this.shellUuid.equals(shell)
+            && this.playerUuid.equals(owner);
     }
 
     public ShellStates getShellState() {
@@ -499,7 +504,11 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
     }
 
     @Override
+    @Nullable
     public AbstractContainerMenu createMenu(final int containerId, final Inventory inventory, final Player player) {
+        if (this.level == null) {
+            return null;
+        }
         return new ShellForgeContainerMenu(containerId, inventory, this, ContainerLevelAccess.create(this.level, this.getBlockPos()));
     }
 

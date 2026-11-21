@@ -11,7 +11,6 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.transfer.item.VanillaContainerWrapper;
 
 @EventBusSubscriber
 public final class CommonEvents {
@@ -35,7 +34,7 @@ public final class CommonEvents {
         event.registerBlockEntity(
             Capabilities.Item.BLOCK,
             ModBlockEntityTypes.CENTRIFUGE.get(),
-            (blockEntity, side) -> VanillaContainerWrapper.of(blockEntity.inventoryHandler)
+            (blockEntity, side) -> blockEntity.inventoryHandler
         );
     }
 

@@ -242,8 +242,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
         super.extractTooltip(graphics, mouseX, mouseY);
 
         if (this.isHovering(7, 18, 8, ENERGY_BAR_HEIGHT + 1, mouseX, mouseY)) {
-            graphics.setTooltipForNextFrame(this.font, Component.translatable("gui.playershells.energy",
-                this.getMenu().getBlockEntity().energyStorage.getAmountAsLong()), mouseX, mouseY);
+            graphics.setTooltipForNextFrame(this.font, Component.translatable("gui.playershells.energy", this.getMenu().getBlockEntity().energyStorage.getAmountAsLong()), mouseX, mouseY);
         }
     }
 

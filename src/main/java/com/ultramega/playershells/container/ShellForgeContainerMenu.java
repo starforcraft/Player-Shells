@@ -31,7 +31,7 @@ public class ShellForgeContainerMenu extends AbstractContainerMenu {
         this.blockEntity = blockEntity;
         this.access = access;
 
-        this.addSlot(new ShellSlotItemHandler(this.blockEntity.inventoryHandler, 0, 80, 17, this.blockEntity));
+        this.addSlot(new ShellSlotItemHandler(0, 80, 17, this.blockEntity));
 
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 9; j++) {

@@ -26,7 +26,6 @@ public class ShellButton extends Button {
 
     @Override
     protected void extractContents(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY, final float partialTick) {
-        // TODO: improve visual
         final Minecraft mc = Minecraft.getInstance();
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITES.get(this.active, this.isHoveredOrFocused()),
             this.getX(), this.getY(), this.getWidth(), this.getHeight(), (Mth.ceil(this.alpha * 255.0F) << 24) | 0xff0000);
@@ -40,10 +39,8 @@ public class ShellButton extends Button {
             final int y = this.getY() + (this.getHeight() - mc.font.lineHeight) / 2 + 1;
             graphics.text(mc.font, text, x, y, color, true);
         } else {
-            graphics.centeredText(mc.font, this.getMessage(), this.getX() + this.getWidth() / 2,
-                this.getY() + (this.getHeight() - mc.font.lineHeight) / 2 + 1, color);
+            graphics.centeredText(mc.font, this.getMessage(), this.getX() + this.getWidth() / 2, this.getY() + (this.getHeight() - mc.font.lineHeight) / 2 + 1, color);
         }
-
     }
 
     public void setMessage(final ShellStates state) {

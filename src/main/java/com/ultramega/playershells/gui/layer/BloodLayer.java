@@ -38,8 +38,7 @@ public class BloodLayer implements GuiLayer {
         final float alpha = pulseAlpha(usePos);
         if (alpha > 0.01f) {
             final int tint = (Math.round(alpha * 255) << 24) | 0xffffff;
-            graphics.blit(RenderPipelines.GUI_TEXTURED, UNDERWATER_LOCATION, 0, 0, 0, 0,
-                graphics.guiWidth(), graphics.guiHeight(), graphics.guiWidth(), graphics.guiHeight(), tint);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, UNDERWATER_LOCATION, 0, 0, 0, 0, graphics.guiWidth(), graphics.guiHeight(), graphics.guiWidth(), graphics.guiHeight(), tint);
         }
     }
 

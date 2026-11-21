@@ -27,7 +27,6 @@ public class ClientShellData {
     public static final ClientShellData INSTANCE = new ClientShellData();
 
     private final Map<UUID, ShellEntity> previews = new HashMap<>();
-
     private Multimap<UUID, ShellState> entries = ArrayListMultimap.create();
 
     public void set(final Multimap<UUID, ShellState> entries) {
@@ -74,9 +73,8 @@ public class ClientShellData {
             return;
         }
 
-        // Client previews skip the server's attribute load and equipment tick.
-        input.read(LivingEntity.TAG_ATTRIBUTES, AttributeInstance.Packed.LIST_CODEC).ifPresent(attributes ->
-            attributes.stream().filter(attribute -> attribute.attribute().equals(Attributes.ARMOR)).findFirst().ifPresent(armor::apply));
+        input.read(LivingEntity.TAG_ATTRIBUTES, AttributeInstance.Packed.LIST_CODEC)
+            .flatMap(attributes -> attributes.stream().filter(attribute -> attribute.attribute().equals(Attributes.ARMOR)).findFirst()).ifPresent(armor::apply);
         for (final EquipmentSlot slot : EquipmentSlot.VALUES) {
             final var stack = preview.getItemBySlot(slot);
             if (!stack.isEmpty() && !stack.isBroken()) {

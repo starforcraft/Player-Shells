@@ -22,14 +22,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SubmitNodeCollection.class)
 public abstract class MixinSubmitNodeCollection {
-    @ModifyVariable(method = {"submitModel", "submitModelPart", "submitCustomGeometry"}, at = @At("HEAD"), argsOnly = true, require = 3)
+    @ModifyVariable(method = {"submitModel", "submitModelPart", "submitCustomGeometry"}, at = @At("HEAD"), argsOnly = true, require = 3, name = "renderType")
     private RenderType playershells$applyScan(final RenderType renderType) {
         return ShellScan.renderType(renderType);
     }
 
     @Inject(method = "submitItem", at = @At("HEAD"), cancellable = true)
-    private void playershells$submitScannedItem(final PoseStack pose, final ItemDisplayContext displayContext, final int light,
-        final int overlay, final int outline, final int[] tintLayers, final List<BakedQuad> quads,
+    private void playershells$submitScannedItem(final PoseStack poseStack,
+                                                final ItemDisplayContext displayContext,
+                                                final int lightCoords,
+                                                final int overlayCoords,
+                                                final int outlineColor,
+                                                final int[] tintLayers,
+                                                final List<BakedQuad> quads,
         final ItemStackRenderState.FoilType foilType, final CallbackInfo callback) {
         if (!ShellScan.isActive()) {
             return;
@@ -37,11 +42,11 @@ public abstract class MixinSubmitNodeCollection {
 
         final SubmitNodeCollection nodes = (SubmitNodeCollection) (Object) this;
         final QuadInstance colors = new QuadInstance();
-        colors.setLightCoords(light);
-        colors.setOverlayCoords(overlay);
+        colors.setLightCoords(lightCoords);
+        colors.setOverlayCoords(overlayCoords);
         final PoseStack.Pose foilPose;
         if (foilType == ItemStackRenderState.FoilType.SPECIAL) {
-            foilPose = pose.last().copy();
+            foilPose = poseStack.last().copy();
             if (displayContext == ItemDisplayContext.GUI) {
                 MatrixUtil.mulComponentWise(foilPose.pose(), 0.5F);
             } else if (displayContext.firstPerson()) {
@@ -55,13 +60,13 @@ public abstract class MixinSubmitNodeCollection {
             final BakedQuad.MaterialInfo material = quad.materialInfo();
             final int index = material.tintIndex();
             final int tint = material.isTinted() && index >= 0 && index < tintLayers.length ? tintLayers[index] : -1;
-            nodes.submitCustomGeometry(pose, material.itemRenderType(), (itemPose, buffer) -> {
+            nodes.submitCustomGeometry(poseStack, material.itemRenderType(), (itemPose, buffer) -> {
                 colors.setColor(tint);
                 buffer.putBakedQuad(itemPose, quad, colors);
             });
             if (foilType != ItemStackRenderState.FoilType.NONE) {
-                // Vanilla glint uses an equal-depth test, so it follows the clipped base quad.
-                nodes.submitCustomGeometry(pose, ItemFeatureRenderer.getFoilRenderType(material.itemRenderType(), true), (itemPose, buffer) -> {
+                // Vanilla glint uses an equal-depth test, so it follows the clipped base quad
+                nodes.submitCustomGeometry(poseStack, ItemFeatureRenderer.getFoilRenderType(material.itemRenderType(), true), (itemPose, buffer) -> {
                     colors.setColor(tint);
                     final var foilBuffer = foilPose == null ? buffer : new SheetedDecalTextureGenerator(buffer, foilPose, 0.0078125F);
                     foilBuffer.putBakedQuad(itemPose, quad, colors);

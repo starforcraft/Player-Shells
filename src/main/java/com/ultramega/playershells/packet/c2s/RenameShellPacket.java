@@ -33,8 +33,10 @@ public record RenameShellPacket(int containerId, UUID shellUuid, String name) im
 
     public static void handle(final RenameShellPacket data, final IPayloadContext context) {
         context.enqueueWork(() -> {
-            if (!(context.player() instanceof ServerPlayer player) || !(player.containerMenu instanceof ShellForgeContainerMenu menu)
-                || menu.containerId != data.containerId() || !menu.stillValid(player)) {
+            if (!(context.player() instanceof ServerPlayer player)
+                || !(player.containerMenu instanceof ShellForgeContainerMenu menu)
+                || menu.containerId != data.containerId()
+                || !menu.stillValid(player)) {
                 return;
             }
             final var forge = menu.getBlockEntity();

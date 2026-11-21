@@ -17,6 +17,7 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
 
 import static com.ultramega.playershells.blockentities.CentrifugeBlockEntity.PROCESSING_TOTAL_TIME;
 
@@ -36,13 +37,14 @@ public class CentrifugeContainerMenu extends AbstractContainerMenu {
         this.blockEntity = blockEntity;
         this.access = access;
 
-        this.addSlot(new Slot(blockEntity.inventoryHandler, 0, 56, 34) {
+        final var inventory = blockEntity.inventoryHandler;
+        this.addSlot(new ResourceHandlerSlot(inventory, inventory::set, 0, 56, 34) {
             @Override
             public boolean mayPlace(final ItemStack stack) {
                 return stack.is(ModItems.BLOOD_SYRINGE.get()) && stack.has(ModDataComponentTypes.OWNER_PLAYER.get());
             }
         });
-        this.addSlot(new Slot(blockEntity.inventoryHandler, 1, 116, 35) {
+        this.addSlot(new ResourceHandlerSlot(inventory, inventory::set, 1, 116, 35) {
             @Override
             public boolean mayPlace(final ItemStack stack) {
                 return false;

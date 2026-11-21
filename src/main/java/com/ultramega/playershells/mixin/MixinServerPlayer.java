@@ -66,7 +66,8 @@ public abstract class MixinServerPlayer extends Player implements ShellPlayer {
         final PositionReference destination = shell.shellForgePos();
         final ServerLevel target = findTargetLevel(source.getServer(), destination);
         final BlockPos pos = destination.pos();
-        if (target == null || !(target.getChunkAt(pos).getBlockEntity(pos) instanceof ShellForgeBlockEntity forge)
+        if (target == null
+            || !(target.getChunkAt(pos).getBlockEntity(pos) instanceof ShellForgeBlockEntity forge)
             || !forge.getShellUuid().equals(shell.shellUUID())) {
             return;
         }

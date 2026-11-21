@@ -10,6 +10,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
 
 import static com.ultramega.playershells.utils.MathUtils.lerpAngle;
@@ -19,6 +21,7 @@ public final class CameraHandler {
     private static final long PHASE1_MS = 700L; // 0.7 seconds: forward + 180° turn
     private static final long PHASE2_MS = 2_000L; // 2 seconds: vertical rise
     private static final long PITCH_MS = 400L; // 0.4 second: pitch 0 → 90
+    private static final long ARRIVAL_TIMEOUT_MS = 10_000L;
     private static final double BLOCKS_UP = 400.0;
 
     @Nullable
@@ -37,6 +40,7 @@ public final class CameraHandler {
     private static boolean reversing = false;
     private static long animClockMs = 0L;
     private static long lastNowMs = -1L;
+    private static long arrivalWaitStartedMs = -1L;
 
     @Nullable
     private static Vec3 p0Start;
@@ -60,12 +64,29 @@ public final class CameraHandler {
             return;
         }
 
-        final long now = System.currentTimeMillis();
+        final long now = Util.getMillis();
 
         if (!animating) {
-            beginAnimation(camera, now);
+            beginAnimation(now);
         }
         if (animating) {
+            final CameraAccess access = (CameraAccess) camera;
+            if (arrivalWaitStartedMs >= 0L) {
+                if (!hasArrived(mc)) {
+                    if (now - arrivalWaitStartedMs >= ARRIVAL_TIMEOUT_MS) {
+                        resetPosition();
+                    } else if (p2Up != null) {
+                        access.playershells$setDetached(true);
+                        access.playershells$setPosition(p2Up);
+                        access.playershells$setRotation(startMidYaw, 90.0f, 0.0f);
+                    }
+                    return;
+                }
+                arrivalWaitStartedMs = -1L;
+                reversing = true;
+                animClockMs = 0L;
+                lastNowMs = now;
+            }
             if (lastNowMs < 0L) {
                 lastNowMs = now;
             }
@@ -76,9 +97,8 @@ public final class CameraHandler {
             }
             lastNowMs = now;
 
-            final CameraAccess access = (CameraAccess) camera;
             access.playershells$setDetached(true);
-            applyAnimation(access, animClockMs);
+            applyAnimation(access, animClockMs, now);
         }
     }
 
@@ -104,6 +124,7 @@ public final class CameraHandler {
         reversing = false;
         animClockMs = 0L;
         lastNowMs = -1L;
+        arrivalWaitStartedMs = -1L;
         p0Start = null;
         p1Forward = null;
         p2Up = null;
@@ -118,7 +139,16 @@ public final class CameraHandler {
         return endForge != null && endForge.dimension().equals(dimension) && endForge.pos().equals(forgePos);
     }
 
-    private static void beginAnimation(final Camera camera, final long now) {
+    private static boolean hasArrived(final Minecraft client) {
+        if (endForge == null || client.player == null || client.level == null || !client.level.dimension().identifier().equals(endForge.dimension())) {
+            return false;
+        }
+        final BlockPos pos = endForge.pos();
+        final ChunkPos chunk = ChunkPos.containing(pos);
+        return client.player.position().distanceToSqr(Vec3.atBottomCenterOf(pos)) < 1.0 && client.level.getChunkSource().hasChunk(chunk.x(), chunk.z());
+    }
+
+    private static void beginAnimation(final long now) {
         if (endPosition == null || endForge == null) {
             return;
         }
@@ -136,8 +166,7 @@ public final class CameraHandler {
             startYaw = startFacing.toYRot();
             startMidYaw = Mth.wrapDegrees(startYaw + 180.0f);
         } else {
-            p1Forward = camera.position();
-            p2Up = p1Forward.add(0.0, BLOCKS_UP, 0.0);
+            arrivalWaitStartedMs = now;
         }
 
         final Direction endFacing = endForge.facing();
@@ -147,14 +176,11 @@ public final class CameraHandler {
         endMidYaw = Mth.wrapDegrees(endYaw + 180.0f);
     }
 
-    private static void applyAnimation(final CameraAccess camera, final long elapsedMs) {
-        if (p2Up == null) {
-            return;
-        }
+    private static void applyAnimation(final CameraAccess camera, final long elapsedMs, final long now) {
         final long elapsed = Math.max(0L, elapsedMs);
         final long forwardTotal = PHASE1_MS + PHASE2_MS;
 
-        if (!reversing && p0Start != null && p1Forward != null) {
+        if (!reversing && p0Start != null && p1Forward != null && p2Up != null) {
             if (elapsed <= PHASE1_MS) {
                 // Phase 1: move forward 1 block + rotate 180°, pitch stays 0
                 final float t = (float) elapsed / (float) PHASE1_MS;
@@ -179,11 +205,10 @@ public final class CameraHandler {
                 camera.playershells$setPosition(pos);
                 camera.playershells$setRotation(startMidYaw, pitch, 0.0F);
             } else {
-                // Switch to reverse run: start from top
+                // Hold above the departure Forge until the destination is ready
                 camera.playershells$setPosition(p2Up);
                 camera.playershells$setRotation(startMidYaw, 90.0f, 0.0F);
-                reversing = true;
-                animClockMs = 0L;
+                arrivalWaitStartedMs = now;
                 if (onFinished != null) {
                     final Runnable callback = onFinished;
                     onFinished = null;
@@ -202,9 +227,9 @@ public final class CameraHandler {
         final Vec3 e1Forward = e0End.add(endStepDir);
 
         if (elapsed <= PHASE2_MS) {
-            // Reverse of Phase 2: descend (and slide) yaw fixed at endMidYaw
+            // Start directly above the destination Forge
             final float tDown = (float) elapsed / (float) PHASE2_MS;
-            final Vec3 pos = lerpVec3(p2Up, e1Forward, tDown);
+            final Vec3 pos = lerpVec3(e0End.add(0.0, BLOCKS_UP, 0.0), e1Forward, tDown);
             camera.playershells$setPosition(pos);
             camera.playershells$setRotation(endMidYaw, 90.0F, 0.0F);
         } else if (elapsed <= PHASE2_MS + PHASE1_MS) {

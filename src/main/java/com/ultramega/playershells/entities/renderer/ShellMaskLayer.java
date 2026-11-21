@@ -48,7 +48,7 @@ public final class ShellMaskLayer extends RenderLayer<AvatarRenderState, PlayerM
             return;
         }
         pose.pushPose();
-        // Match the standing shell's head transform at the center of the Forge.
+        // Match the shell's head transform at the center of the Shell Forge
         pose.translate(0.5, 0.0625 + 1.501 * HEAD_SCALE, 0.5);
         pose.scale(-HEAD_SCALE, -HEAD_SCALE, HEAD_SCALE);
         submitMask(pose, nodes, light, progress);
@@ -56,15 +56,17 @@ public final class ShellMaskLayer extends RenderLayer<AvatarRenderState, PlayerM
     }
 
     private static void submitMask(final PoseStack pose, final SubmitNodeCollector nodes, final int light, final float separation) {
+        final var model = Minecraft.getInstance().getModelManager().getStandaloneModel(MODEL);
+        if (model == null) {
+            return;
+        }
         final float rise = smoothstep01(separation);
         final float forward = smoothstep01(separation / 0.5f);
         pose.translate(0f, -0.22f * rise / HEAD_SCALE, -0.025f * forward / HEAD_SCALE);
-        // The JSON uses a centered head pivot, with +Y up and the mask facing south.
         pose.mulPose(Axis.XP.rotationDegrees(180f));
         pose.translate(-0.5f, -0.5f, -0.5f);
         final int tint = ARGB.color(Math.round(255f * (1f - smoothstep01((separation - 0.60f) / 0.40f))), 0xFFFFFF);
         final var renderType = separation <= 0f ? Sheets.cutoutBlockSheet() : RenderTypes.entityTranslucent(TextureAtlas.LOCATION_BLOCKS, false);
-        nodes.submitBlockModel(pose, renderType, List.of(Minecraft.getInstance().getModelManager().getStandaloneModel(MODEL)),
-            new int[]{tint}, light, OverlayTexture.NO_OVERLAY, 0);
+        nodes.submitBlockModel(pose, renderType, List.of(model), new int[]{tint}, light, OverlayTexture.NO_OVERLAY, 0);
     }
 }

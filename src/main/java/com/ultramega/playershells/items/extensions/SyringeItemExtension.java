@@ -19,7 +19,9 @@ public final class SyringeItemExtension {
         final Minecraft mc = Minecraft.getInstance();
         final LocalPlayer player = mc.player;
         final ItemStack syringe = event.getItemStack();
-        if (player == null || event.getHand() != InteractionHand.MAIN_HAND || !syringe.is(ModItems.EMPTY_SYRINGE.get())
+        if (player == null
+            || event.getHand() != InteractionHand.MAIN_HAND
+            || !syringe.is(ModItems.EMPTY_SYRINGE.get())
             || !player.getOffhandItem().isEmpty()) {
             return;
         }
@@ -38,8 +40,7 @@ public final class SyringeItemExtension {
             renderLeftPlayerArm(mc, player, pose, nodes, light, event.getPartialTick(), ticks);
         }
         renderRightPlayerArm(mc, player, pose, nodes, light, event.getPartialTick(), equipped, ticks, duration);
-        mc.getEntityRenderDispatcher().getItemInHandRenderer()
-            .renderItem(player, syringe, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, pose, nodes, light);
+        mc.getEntityRenderDispatcher().getItemInHandRenderer().renderItem(player, syringe, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND, pose, nodes, light);
         pose.popPose();
     }
 
