@@ -454,7 +454,8 @@ public class ShellSelectionOverlay extends RadialMenuRenderer<ShellBundle.ShellE
             final StatEntry statEntry = new StatEntry(preview.getHealth(), preview.getArmorValue(),
                 preview.getFoodData().getFoodLevel(), preview.getActiveEffectsMap());
 
-            shellEntries.add(new ShellEntry(player.getName().getString(), Optional.of(shellState.shellForgePos()),
+            final String title = shellState.customName().isEmpty() ? player.getName().getString() : shellState.customName();
+            shellEntries.add(new ShellEntry(title, Optional.of(shellState.shellForgePos()),
                 Optional.of(inventoryEntry), Optional.of(statEntry), Optional.of(shellState.shellUUID())));
         }
 

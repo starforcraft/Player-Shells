@@ -2,6 +2,7 @@ package com.ultramega.playershells.packet;
 
 import com.ultramega.playershells.PlayerShells;
 import com.ultramega.playershells.packet.c2s.LeaveShellForgePacket;
+import com.ultramega.playershells.packet.c2s.RenameShellPacket;
 import com.ultramega.playershells.packet.c2s.ShellButtonPressedPacket;
 import com.ultramega.playershells.packet.c2s.TransferPlayerPacket;
 import com.ultramega.playershells.packet.c2s.ValidateShellForgePacket;
@@ -21,7 +22,8 @@ public final class PayloadEvent {
 
     @SubscribeEvent
     public static void register(final RegisterPayloadHandlersEvent event) {
-        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.1");
+        final PayloadRegistrar registrar = event.registrar(PlayerShells.MODID).versioned("1.2");
+        registrar.playToServer(RenameShellPacket.TYPE, RenameShellPacket.STREAM_CODEC, RenameShellPacket::handle);
         registrar.playToServer(
             ShellButtonPressedPacket.TYPE,
             ShellButtonPressedPacket.STREAM_CODEC,

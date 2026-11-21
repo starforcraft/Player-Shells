@@ -8,6 +8,8 @@
   "subtitles.playershells.mask_release": "呼吸マスクから空気が抜ける",
   "block.playershells.centrifuge": "DNA遠心分離機",
   "gui.playershells.shell_forge.create": "創造",
+  "gui.playershells.shell_forge.shell_name": "シェルの名前",
+  "gui.playershells.shell_forge.save_name": "保存",
   "gui.playershells.shell_forge.creating": "創造中",
   "gui.playershells.shell_forge.exterminate": "処分",
   "gui.playershells.shell_forge.exterminating": "処分中",

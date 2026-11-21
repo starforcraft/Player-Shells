@@ -17,6 +17,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
 import net.minecraft.network.chat.Component;
@@ -34,6 +36,7 @@ public abstract class RadialMenuRenderer<T> {
     public static final float MIDDLE_DISTANCE = (INNER + OUTER) / 2F;
 
     private static final float DRAWS = 300;
+    private static final int MAX_LABEL_WIDTH = 72;
 
     protected int lastIndexUnderMouse = -1;
 
@@ -87,6 +90,7 @@ public abstract class RadialMenuRenderer<T> {
         }
 
         graphics.nextStratum();
+        Component hoveredTitle = null;
         for (int i = 0; i < count; i++) {
             final T entry = entries.get(i);
             final ShellEntity entity = this.getPlayerShell(entry);
@@ -103,7 +107,22 @@ public abstract class RadialMenuRenderer<T> {
             if (progress != 100) {
                 graphics.centeredText(mc.font, Component.literal(progress + "%"), x, y - 20, 0xccffffff);
             }
-            graphics.centeredText(mc.font, this.getTitle(entry), x, y + 14, 0xccffffff);
+            final Component title = this.getTitle(entry);
+            if (mc.font.width(title) > MAX_LABEL_WIDTH) {
+                final String shortened = mc.font.plainSubstrByWidth(title.getString(), MAX_LABEL_WIDTH - mc.font.width("…")) + "…";
+                graphics.centeredText(mc.font, shortened, x, y + 14, 0xccffffff);
+                if (i == this.lastIndexUnderMouse) {
+                    hoveredTitle = title;
+                }
+            } else {
+                graphics.centeredText(mc.font, title, x, y + 14, 0xccffffff);
+            }
+        }
+        if (hoveredTitle != null) {
+            final MousePos mouse = getMousePos();
+            final var lines = mc.font.split(hoveredTitle, 120).stream().map(ClientTooltipComponent::create).toList();
+            graphics.nextStratum();
+            graphics.tooltip(mc.font, lines, (int) mouse.x(), (int) mouse.y(), DefaultTooltipPositioner.INSTANCE, null);
         }
     }
 

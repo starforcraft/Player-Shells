@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -31,6 +32,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.StringUtil;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -55,7 +57,7 @@ public class ShellSavedData extends SavedData {
             entries -> new ShellSavedData(entries, ArrayListMultimap.create()), data -> data.entries))
     );
 
-    private final Multimap<UUID, ShellState> entries;
+    private final ListMultimap<UUID, ShellState> entries;
     private final Multimap<UUID, ShellState> archived;
 
     private ShellSavedData() {
@@ -98,7 +100,7 @@ public class ShellSavedData extends SavedData {
         }
 
         this.archived.remove(owner, shell);
-        this.entries.put(owner, new ShellState(shellUuid, destination, shell.playerData(), 100));
+        this.entries.put(owner, new ShellState(shellUuid, destination, shell.playerData(), 100, shell.customName()));
         this.setDirty();
         return true;
     }
@@ -115,15 +117,26 @@ public class ShellSavedData extends SavedData {
                 oldShellState.shellUUID(),
                 oldShellState.shellForgePos(),
                 oldShellState.playerData(),
-                newShellCreationProgress
+                newShellCreationProgress,
+                oldShellState.customName()
             );
-
-            final Collection<ShellState> states = this.entries.get(playerUuid);
-            states.remove(oldShellState);
-            states.add(newShellState);
-
-            this.setDirty();
+            this.replaceActiveShell(playerUuid, oldShellState, newShellState);
         }
+    }
+
+    public void renameShell(final UUID owner, final UUID shellUuid, final String name) {
+        final ShellState shell = this.get(owner, shellUuid);
+        final String cleaned = StringUtil.filterText(name).strip();
+        if (shell != null && cleaned.length() <= ShellState.MAX_NAME_LENGTH && !shell.customName().equals(cleaned)) {
+            this.replaceActiveShell(owner, shell,
+                new ShellState(shellUuid, shell.shellForgePos(), shell.playerData(), shell.shellCreationProgress(), cleaned));
+        }
+    }
+
+    private void replaceActiveShell(final UUID owner, final ShellState previous, final ShellState replacement) {
+        final List<ShellState> shells = this.entries.get(owner);
+        shells.set(shells.indexOf(previous), replacement);
+        this.setDirty();
     }
 
     public Collection<ShellState> getAll(final UUID playerUuid) {
@@ -230,7 +243,7 @@ public class ShellSavedData extends SavedData {
                 entries.forEach((owner, shell) -> data.entries.put(owner, new ShellState(
                     shell.shellUUID(), shell.shellForgePos(),
                     DataFixTypes.PLAYER.updateToCurrentVersion(server.getFixerUpper(), shell.playerData(), version),
-                    shell.shellCreationProgress()
+                    shell.shellCreationProgress(), shell.customName()
                 )));
             } catch (IOException e) {
                 throw new UncheckedIOException("Could not read legacy Player Shells data", e);

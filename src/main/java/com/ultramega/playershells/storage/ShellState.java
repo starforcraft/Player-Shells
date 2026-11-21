@@ -14,12 +14,15 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
-public record ShellState(UUID shellUUID, PositionReference shellForgePos, CompoundTag playerData, int shellCreationProgress) {
+public record ShellState(UUID shellUUID, PositionReference shellForgePos, CompoundTag playerData, int shellCreationProgress, String customName) {
+    public static final int MAX_NAME_LENGTH = 24;
+
     public static final StreamCodec<ByteBuf, ShellState> STREAM_CODEC = StreamCodec.composite(
         UUIDUtil.STREAM_CODEC, ShellState::shellUUID,
         PositionReference.STREAM_CODEC, ShellState::shellForgePos,
         ByteBufCodecs.COMPOUND_TAG, ShellState::playerData,
         ByteBufCodecs.INT, ShellState::shellCreationProgress,
+        ByteBufCodecs.stringUtf8(MAX_NAME_LENGTH), ShellState::customName,
         ShellState::new
     );
 
@@ -27,8 +30,13 @@ public record ShellState(UUID shellUUID, PositionReference shellForgePos, Compou
         UUIDUtil.CODEC.fieldOf("shellUUID").forGetter(ShellState::shellUUID),
         PositionReference.CODEC.fieldOf("oldShellForgePos").forGetter(ShellState::shellForgePos),
         CompoundTag.CODEC.fieldOf("playerData").forGetter(ShellState::playerData),
-        Codec.INT.fieldOf("shellCreationProgress").forGetter(ShellState::shellCreationProgress)
+        Codec.INT.fieldOf("shellCreationProgress").forGetter(ShellState::shellCreationProgress),
+        Codec.STRING.optionalFieldOf("customName", "").forGetter(ShellState::customName)
     ).apply(in, ShellState::new));
 
     public static final Codec<Multimap<UUID, ShellState>> MULTIMAP_CODEC = MathUtils.multiMapCodec(Codec.STRING.xmap(UUID::fromString, UUID::toString), ShellState.CODEC);
+
+    public ShellState(final UUID shellUuid, final PositionReference shellForgePos, final CompoundTag playerData, final int progress) {
+        this(shellUuid, shellForgePos, playerData, progress, "");
+    }
 }

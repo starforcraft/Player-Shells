@@ -4,7 +4,10 @@ import com.ultramega.playershells.blockentities.ShellForgeBlockEntity.ShellState
 import com.ultramega.playershells.container.ShellForgeContainerMenu;
 import com.ultramega.playershells.gui.widgets.ProgressBarWidget;
 import com.ultramega.playershells.gui.widgets.ShellButton;
+import com.ultramega.playershells.packet.c2s.RenameShellPacket;
 import com.ultramega.playershells.packet.c2s.ShellButtonPressedPacket;
+import com.ultramega.playershells.storage.ClientShellData;
+import com.ultramega.playershells.storage.ShellState;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -12,6 +15,8 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -27,6 +32,7 @@ import org.joml.Matrix3x2fStack;
 
 import static com.ultramega.playershells.PlayerShells.MODID;
 import static com.ultramega.playershells.utils.MathUtils.EMPTY_UUID;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_TAB;
 
 public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContainerMenu> {
     private static final Identifier BACKGROUND = Identifier.fromNamespaceAndPath(MODID, "textures/gui/shell_forge.png");
@@ -44,6 +50,10 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
     private ShellButton shellButton;
     @Nullable
     private ProgressBarWidget progressBar;
+    private EditBox shellName;
+    private Button saveName;
+    private UUID nameTarget = EMPTY_UUID;
+    private String savedName = "";
 
     @Nullable
     private Component randomStatusSubText;
@@ -57,17 +67,64 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
 
     @Override
     protected void init() {
+        final String draft = this.shellName == null ? "" : this.shellName.getValue();
         super.init();
 
         this.shellButton = new ShellButton(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 55, 80, 16,
             button -> this.pressShellButton(), this.getMenu().getBlockEntity());
         this.addRenderableWidget(this.shellButton);
 
-        this.progressBar = new ProgressBarWidget(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 25, 80, 16, this.getMenu().getBlockEntity(),
+        this.progressBar = new ProgressBarWidget(this.leftPos + (this.imageWidth - 80) / 2, this.topPos + 33, 80, 16, this.getMenu().getBlockEntity(),
             () -> this.getMenu().getBlockEntity().getShellPercentage());
         this.addRenderableWidget(this.progressBar);
 
+        final Component label = Component.translatable("gui.playershells.shell_forge.shell_name");
+        this.shellName = this.addRenderableWidget(new EditBox(this.font, this.leftPos + 23, this.topPos + 17, 102, 14, label));
+        this.shellName.setMaxLength(ShellState.MAX_NAME_LENGTH);
+        this.shellName.setHint(label);
+        this.shellName.setValue(draft);
+        this.saveName = this.addRenderableWidget(Button.builder(Component.translatable("gui.playershells.shell_forge.save_name"),
+            button -> this.saveShellName()).bounds(this.leftPos + 129, this.topPos + 17, 39, 14).build());
+        this.shellName.setResponder(value -> this.updateSaveButton());
         this.containerTick();
+    }
+
+    private void updateNameEditor() {
+        if (this.minecraft.player == null) {
+            return;
+        }
+        final var forge = this.menu.getBlockEntity();
+        final UUID owner = this.minecraft.player.getUUID();
+        final UUID uuid = forge.getShellUuid();
+        final ShellState shell = forge.canRenameShell(owner, uuid) ? ClientShellData.INSTANCE.get(owner, uuid) : null;
+        final boolean visible = shell != null;
+        this.shellName.visible = visible;
+        this.saveName.visible = visible;
+        if (!visible && this.getFocused() == this.shellName) {
+            this.setFocused(null);
+        }
+
+        final UUID target = visible ? uuid : EMPTY_UUID;
+        final String name = visible ? shell.customName() : "";
+        final boolean replaceDraft = !target.equals(this.nameTarget) || this.shellName.getValue().equals(this.savedName);
+        this.nameTarget = target;
+        this.savedName = name;
+        if (replaceDraft && !this.shellName.getValue().equals(name)) {
+            this.shellName.setValue(name);
+        }
+        this.updateSaveButton();
+    }
+
+    private void updateSaveButton() {
+        this.saveName.active = this.shellName.visible && !this.shellName.getValue().strip().equals(this.savedName);
+    }
+
+    private void saveShellName() {
+        if (this.saveName.active) {
+            final String name = this.shellName.getValue().strip();
+            this.shellName.setValue(name);
+            ClientPacketDistributor.sendToServer(new RenameShellPacket(this.menu.containerId, this.nameTarget, name));
+        }
     }
 
     private void pressShellButton() {
@@ -98,6 +155,14 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
 
     @Override
     public boolean keyPressed(final KeyEvent event) {
+        if (this.shellName != null && this.getFocused() == this.shellName && !event.isEscape() && event.key() != GLFW_KEY_TAB) {
+            if (event.isConfirmation()) {
+                this.saveShellName();
+            } else {
+                this.shellName.keyPressed(event);
+            }
+            return true;
+        }
         if (event.isSelection() && !this.heldSelectionKeys.add(event.key()) && this.getFocused() == this.shellButton) {
             return true;
         }
@@ -112,6 +177,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
 
     @Override
     protected void containerTick() {
+        this.updateNameEditor();
         final var forge = this.menu.getBlockEntity();
         final ShellStates state = forge.getShellState();
         if (state != ShellStates.EXTERMINATE || !forge.getShellUuid().equals(this.pendingExtermination)) {
@@ -142,7 +208,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
 
         if (this.pendingExtermination != null) {
             poseStack.pushMatrix();
-            poseStack.translate(this.leftPos + this.imageWidth / 2f, this.topPos + 30);
+            poseStack.translate(this.leftPos + this.imageWidth / 2f, this.topPos + 34);
             poseStack.scale(1.25f);
             graphics.centeredText(this.font, Component.translatable("gui.playershells.shell_forge.exterminate_warning"), 0, 0, 0xFFFF4040);
             poseStack.popMatrix();
@@ -152,7 +218,7 @@ public class ShellForgeScreen extends AbstractContainerScreen<ShellForgeContaine
             if (this.randomStatusSubText != null) {
                 final Component status = Component.translatable("gui.playershells.shell_forge.status", this.randomStatusSubText);
                 final int x = (int) (this.leftPos + (this.imageWidth - this.font.width(status.getString()) * STATUS_TEXT_SCALE) / 2);
-                final int y = this.topPos + 47;
+                final int y = this.topPos + 50;
 
                 poseStack.pushMatrix();
                 poseStack.translate(x, y);

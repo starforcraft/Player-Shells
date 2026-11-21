@@ -8,6 +8,8 @@
   "subtitles.playershells.mask_release": "Breathing mask hisses",
   "block.playershells.centrifuge": "DNA Centrifuge",
   "gui.playershells.shell_forge.create": "Create",
+  "gui.playershells.shell_forge.shell_name": "Shell name",
+  "gui.playershells.shell_forge.save_name": "Save",
   "gui.playershells.shell_forge.creating": "Creating",
   "gui.playershells.shell_forge.exterminate": "Exterminate",
   "gui.playershells.shell_forge.exterminating": "Exterminating",

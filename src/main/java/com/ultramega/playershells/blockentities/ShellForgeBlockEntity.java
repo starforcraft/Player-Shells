@@ -456,6 +456,11 @@ public class ShellForgeBlockEntity extends BlockEntity implements MenuProvider, 
         return this.shellUuid;
     }
 
+    public boolean canRenameShell(final UUID owner, final UUID shell) {
+        return this.shellState != ShellStates.CREATE && this.shellState != ShellStates.EXTERMINATING
+            && !shell.equals(EMPTY_UUID) && this.shellUuid.equals(shell) && this.playerUuid.equals(owner);
+    }
+
     public ShellStates getShellState() {
         return this.shellState;
     }
