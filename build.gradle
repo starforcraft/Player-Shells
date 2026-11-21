@@ -71,6 +71,8 @@ publishMods {
         projectId = "1367394"
         minecraftVersions.add(minecraft_version)
         displayName = file.map { it.asFile.name }
+        client = true
+        server = true
     }
 
     modrinth {
@@ -79,7 +81,6 @@ publishMods {
         minecraftVersions.add(minecraft_version)
     }
 }
-
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
